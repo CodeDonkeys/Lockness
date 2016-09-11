@@ -93,7 +93,10 @@ namespace Skiplist
                 if (searchedNodes.RightNode != Tail && searchedNodes.RightNode.Key.CompareTo(key) == 0)
                     return false;
                 newNode.NextReference.State.Next = searchedNodes.RightNode;
-                if (Interlocked.CompareExchange(ref searchedNodes.LeftNode.NextReference.State.Next, newNode, searchedNodes.RightNode) == searchedNodes.RightNode)
+                var oldState = searchedNodes.LeftNode.NextReference.State;
+                if (oldState.IsMarked || oldState.Next != searchedNodes.RightNode)
+                    continue;
+                if (Interlocked.CompareExchange(ref searchedNodes.LeftNode.NextReference.State, new State(newNode, false), oldState) == oldState)
                     return true;
             }
         }
