@@ -3,142 +3,210 @@ using System.Threading;
 
 namespace Skiplist
 {
-    
     public class LinkedList<TKey, TValue> where TKey : IComparable
     {
-        public class LinkedListNode<TKey, TValue> where TKey : IComparable
+        public class State
+        {
+            public LinkedListNode Next;
+            public bool IsMarked;
+
+            public State(LinkedListNode next, bool isMarked)
+            {
+                Next = next;
+                IsMarked = isMarked;
+            }
+        }
+        public class Reference
+        {
+            public State State;
+
+            public Reference(State state)
+            {
+                State = state;
+            }
+        }
+        public class LinkedListNode
         {
             public readonly TKey Key;
             public TValue Value;
-            public LinkedListNode<TKey, TValue> Next;
-            private bool isMarkedForDelete;
+            public Reference NextReference;
 
-            public LinkedListNode(TKey key, TValue value, LinkedListNode<TKey, TValue> next)
+            public LinkedListNode(TKey key, TValue value, Reference nextReference)
             {
                 Key = key;
                 Value = value;
-                Next = next;
+                NextReference = nextReference;
             }
 
-            private LinkedListNode(LinkedListNode<TKey, TValue> node, bool isMarkedForDelete)
-                : this(node.Key, node.Value, node.Next)
-            {
-                this.isMarkedForDelete = isMarkedForDelete;
-            }
+//            private LinkedListNode(LinkedListNode node, bool isMarker)
+//                : this(node.Key, node.Value, node.NextReference)
+//            {
+//                this.isMarker = isMarker;
+//            }
 
             public bool IsMarkedDeleted()
             {
-                return isMarkedForDelete;
+                if (this.NextReference == null)
+                    return false;
+                return this.NextReference.State.IsMarked;
             }
 
-            public LinkedListNode<TKey, TValue> ConvertToMarkedDeleted()
+            public LinkedListNode ConvertToMarkedDeleted()
             {
-                return new LinkedListNode<TKey, TValue>(this, true);
+                NextReference.State = new State(NextReference.State.Next, true);
+                return this;
             }
 
-            public LinkedListNode<TKey, TValue> ConvertToUnmarkedDeleted()
+//            public static bool operator==(LinkedListNode first, LinkedListNode second)
+//            {
+//                if ((object)first == null && (object)second == null)
+//                    return true;
+//                if ((object)first == null || (object)second == null)
+//                    return false;
+//                if ((object) first == (object) second)
+//                    return true;
+//                return (object)first.NextReference == (object)second.NextReference && first.Key.CompareTo(second.Key) == 0 && (object)first.Value == (object)second.Value;
+//            }
+//
+//            public static bool operator !=(LinkedListNode first, LinkedListNode second)
+//            {
+//                return !(first == second);
+//            }
+        }
+
+        private class SearchedNodes
+        {
+            public LinkedListNode LeftNode { get; private set; }
+            public LinkedListNode RightNode { get; private set; }
+
+            public SearchedNodes(LinkedListNode leftNode, LinkedListNode rightNode)
             {
-                return new LinkedListNode<TKey, TValue>(this, true);
+                LeftNode = leftNode;
+                RightNode = rightNode;
             }
         }
 
-
-        public readonly LinkedListNode<TKey, TValue> Head;
-        public readonly LinkedListNode<TKey, TValue> Tail;
+        public readonly LinkedListNode Head;
+        public readonly LinkedListNode Tail;
 
         public LinkedList()
         {
-            Tail = new LinkedListNode<TKey, TValue>(default(TKey), default(TValue), null);
-            Head = new LinkedListNode<TKey, TValue>(default(TKey), default(TValue), Tail);
+            Tail = new LinkedListNode(default(TKey), default(TValue), null);
+            Head = new LinkedListNode(default(TKey), default(TValue), new Reference(new State(Tail, false)));
         }
 
-        private LinkedListNode<TKey, TValue> Search(TKey key, out LinkedListNode<TKey, TValue> leftNode)
+        public bool TryFind(TKey key, ref TValue value)
         {
-            while (true)
-            {
-                var currentNode = Head;
-                var nextNode = Head.Next;
-                leftNode = currentNode;
-                var leftNodeNext = nextNode;
+            var searchedNodes = Search(key);
 
-                do
-                {
-                    if (!nextNode.IsMarkedDeleted())
-                    {
-                        leftNode = currentNode;
-                        leftNodeNext = nextNode;
-                    }
-                    currentNode = nextNode.ConvertToUnmarkedDeleted();
-                    if (currentNode == Tail)
-                        break;
-                    nextNode = currentNode.Next;
-                } while (nextNode.IsMarkedDeleted() || currentNode.Key.CompareTo(key) < 0);
-
-                var rightNode = currentNode;
-
-                if (leftNodeNext == rightNode)
-                {
-                    if (rightNode != Tail && rightNode.Next.IsMarkedDeleted())
-                        continue;
-                    return rightNode;
-                }
-                
-                if (Interlocked.CompareExchange(ref leftNode.Next, rightNode, leftNodeNext) == rightNode)
-                {
-                    if (rightNode == Tail || !rightNode.Next.IsMarkedDeleted())
-                        return rightNode;
-                }
-            }
-        }
-
-        public TValue Find(TKey key)
-        {
-            LinkedListNode<TKey, TValue> leftNode;
-            var rightNode = Search(key, out leftNode);
-
-            if (rightNode == Tail || rightNode.Key.CompareTo(key) != 0)
-                return default(TValue);
-            return rightNode.Value;
+            if (searchedNodes.RightNode == Tail || searchedNodes.RightNode.Key.CompareTo(key) != 0)
+                return false;
+            value = searchedNodes.RightNode.Value;
+            return true;
         }
 
         public bool TryInsert(TKey key, TValue value)
         {
-            var newNode = new LinkedListNode<TKey, TValue>(key, value, null);
+            var newNode = new LinkedListNode(key, value, new Reference(new State(null, false)));
 
             while (true)
             {
-                LinkedListNode<TKey, TValue> leftNode;
-                var rightNode = Search(key, out leftNode);
-                if (rightNode != Tail && rightNode.Key.CompareTo(key) == 0)
+                var searchedNodes = Search(key);
+                if (searchedNodes.RightNode != Tail && searchedNodes.RightNode.Key.CompareTo(key) == 0)
                     return false;
-                newNode.Next = rightNode;
-                if (Interlocked.CompareExchange(ref leftNode.Next, newNode, rightNode) == newNode)
+                newNode.NextReference.State.Next = searchedNodes.RightNode;
+                if (Interlocked.CompareExchange(ref searchedNodes.LeftNode.NextReference.State.Next, newNode, searchedNodes.RightNode) == searchedNodes.RightNode)
                     return true;
             }
         }
 
         public bool TryDelete(TKey key)
         {
-            LinkedListNode<TKey, TValue> rightNode;
-            LinkedListNode<TKey, TValue> rightNodeNext;
-            LinkedListNode<TKey, TValue> leftNode;
+            SearchedNodes searchedNodes;
+//            LinkedListNode rightNodeNext = null;
 
             while (true)
             {
-                rightNode = Search(key, out leftNode);
-                if (rightNode == Tail || rightNode.Key.CompareTo(key) != 0)
+                searchedNodes = Search(key);
+                if (searchedNodes.RightNode == Tail || searchedNodes.RightNode.Key.CompareTo(key) != 0)
                     return false;
-                rightNodeNext = rightNode.Next;
-                if (!rightNodeNext.IsMarkedDeleted())
+                var oldState = searchedNodes.RightNode.NextReference.State;
+                var newState = new State(searchedNodes.RightNode.NextReference.State.Next, true);
+                if (!searchedNodes.RightNode.IsMarkedDeleted())
                 {
-                    var markedDeletedRightNodeNext = rightNodeNext.ConvertToMarkedDeleted();
-                    if (Interlocked.CompareExchange(ref rightNode.Next, markedDeletedRightNodeNext, rightNodeNext) == markedDeletedRightNodeNext)
+                    if (Interlocked.CompareExchange(ref searchedNodes.RightNode.NextReference.State, newState, oldState) == oldState)
                         break;
                 }
             }
-            if (Interlocked.CompareExchange(ref leftNode.Next, rightNodeNext, rightNode) != rightNodeNext)
-                Search(rightNode.Key, out leftNode);
+//            if (Interlocked.CompareExchange(ref searchedNodes.LeftNode.NextReference.State.Next, rightNodeNext, searchedNodes.RightNode) != searchedNodes.RightNode)
+//                Search(searchedNodes.RightNode.Key);
             return true;
+        }
+
+        private SearchedNodes Search(TKey key)
+        {
+//            while (true)
+//            {
+//                var currentNode = Head;
+//                var nextNode = Head.NextReference;
+//                var leftNode = currentNode;
+//                var leftNodeNext = nextNode;
+//
+//                do
+//                {
+//                    if (!nextNode.State.NextReference.IsMarkedDeleted())
+//                    {
+//                        leftNode = currentNode;
+//                        leftNodeNext = nextNode;
+//                    }
+//                    currentNode = nextNode.State.NextReference;
+//                    if (currentNode == Tail)
+//                        break;
+//                    nextNode = currentNode.NextReference;
+//                } while (nextNode.State.NextReference.IsMarkedDeleted() || currentNode.Key.CompareTo(key) < 0);
+//
+//                var rightNode = currentNode;
+//
+//                if (leftNodeNext.State.NextReference == rightNode)
+//                {
+//                    if (rightNode != Tail && rightNode.NextReference.State.NextReference.IsMarkedDeleted())
+//                        continue;
+//                    return new SearchedNodes(leftNode, rightNode);
+//                }
+//
+//                if (Interlocked.CompareExchange(ref leftNode.NextReference.State.NextReference, rightNode, leftNodeNext.State.NextReference) == leftNodeNext.State.NextReference)
+//                {
+//                    if (rightNode == Tail || !rightNode.NextReference.State.NextReference.IsMarkedDeleted())
+//                        return new SearchedNodes(leftNode, rightNode);
+//                }
+//            }
+            while (true)
+            {
+                var currentNode = Head;
+                var nextNode = Head.NextReference.State.Next;
+
+                while (nextNode.IsMarkedDeleted() || nextNode.Key.CompareTo(key) < 0)
+                {
+                    if (nextNode.IsMarkedDeleted())
+                    {
+                        var newState = new State(nextNode.NextReference.State.Next, false);
+                        var oldState = currentNode.NextReference.State;
+
+                        if (Interlocked.CompareExchange(ref currentNode.NextReference.State, newState, oldState) != oldState)
+                        {
+                            nextNode = currentNode.NextReference.State.Next;
+                            continue;
+                        }
+                    }
+
+                    if (nextNode == Tail)
+                        break;
+                    currentNode = nextNode;
+                    nextNode = currentNode.NextReference.State.Next;
+                }
+
+                return new SearchedNodes(currentNode, nextNode);
+            }
         }
     }
 }
