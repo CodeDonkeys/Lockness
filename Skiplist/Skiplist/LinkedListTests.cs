@@ -9,11 +9,11 @@ namespace Skiplist
     [TestFixture]
     public class LinkedListTests
     {
-        private LinkedList<int, int> list;
+        private MadLinkedList<int, int> list;
         [SetUp]
         public void SetUp()
         {
-            list = new LinkedList<int, int>();
+            list = new MadLinkedList<int, int>();
         }
 
         private void Print()
