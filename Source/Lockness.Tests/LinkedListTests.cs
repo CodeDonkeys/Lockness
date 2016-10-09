@@ -4,12 +4,13 @@ using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
-namespace Skiplist
+namespace CodeDonkeys.Lockness.Tests
 {
     [TestFixture]
     public class LinkedListTests
     {
         private MadLinkedList<int, int> list;
+
         [SetUp]
         public void SetUp()
         {

@@ -1,10 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using NUnit.Framework;
 
-namespace Skiplist
+namespace CodeDonkeys.Lockness.Tests
 {
     public class PrintedSkipList : SkipList<int, int>
     {

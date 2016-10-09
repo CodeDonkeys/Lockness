@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Threading;
 
-namespace Skiplist
+namespace CodeDonkeys.Lockness.Tests
 {
     public class MadLinkedList<TKey, TValue> where TKey : IComparable
     {
