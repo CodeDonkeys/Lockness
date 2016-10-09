@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Skiplist
+namespace CodeDonkeys.Lockness
 {
     public class SkipListNode<TKey, TValue> where TKey: IComparable
     {

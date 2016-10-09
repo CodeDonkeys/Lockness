@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Threading;
 
-namespace Skiplist
+namespace CodeDonkeys.Lockness
 {
     public class LinkedList<TKey, TValue> where TKey : IComparable
     {
