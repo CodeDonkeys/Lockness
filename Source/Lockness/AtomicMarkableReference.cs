@@ -1,29 +1,30 @@
-﻿using System.Threading;
+﻿using System;
+using System.Threading;
 
 namespace CodeDonkeys.Lockness
 {
-    internal sealed class AtomicMarkableReference<TReference>
+    public sealed class AtomicMarkableReference<TReference, TMark>
     {
-        public AtomicMarkableReference(TReference reference, bool mark)
+        public AtomicMarkableReference(TReference reference, TMark mark)
         {
             state = new State(reference, mark);
         }
 
-        public bool CompareAndSet(TReference expectedReference, TReference newReference, bool expectedMark, bool newMark)
+        public bool CompareAndSet(TReference expectedReference, TReference newReference, TMark expectedMark, TMark newMark)
         {
             var localState = state;
 
             return ReferenceEquals(localState.Reference, expectedReference)
-                   && localState.Mark == expectedMark
+                   && localState.Mark.Equals(expectedMark)
                    && Interlocked.CompareExchange(ref state, new State(newReference, newMark), localState) == localState;
         }
 
-        public void Set(TReference newReference, bool newMark)
+        public void Set(TReference newReference, TMark newMark)
         {
             Interlocked.Exchange(ref state, new State(newReference, newMark));
         }
 
-        public TReference Get(out bool mark)
+        public TReference Get(out TMark mark)
         {
             var localState = state;
             mark = localState.Mark;
@@ -35,9 +36,9 @@ namespace CodeDonkeys.Lockness
         private class State
         {
             internal readonly TReference Reference;
-            internal readonly bool Mark;
+            internal readonly TMark Mark;
 
-            public State(TReference reference, bool mark)
+            public State(TReference reference, TMark mark)
             {
                 Reference = reference;
                 Mark = mark;
