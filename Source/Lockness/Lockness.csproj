@@ -44,7 +44,7 @@
     <Compile Include="HarrisLinkedList.cs" />
     <Compile Include="HarrisLinkedListWithBacklinkAndSuccessorFlag.cs" />
     <Compile Include="ISet.cs" />
-    <Compile Include="MadLinkedList.cs" />
+    <Compile Include="Node.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SkipList.cs" />
   </ItemGroup>
