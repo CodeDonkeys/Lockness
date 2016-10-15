@@ -42,6 +42,9 @@
   <ItemGroup>
     <Compile Include="AtomicMarkableReference.cs" />
     <Compile Include="AtomicStampedReference.cs" />
+    <Compile Include="HarrisLinkedList.cs" />
+    <Compile Include="HarrisLinkedListWithBacklinkAndSuccessorFlag.cs" />
+    <Compile Include="ISet.cs" />
     <Compile Include="LinkedList.cs" />
     <Compile Include="MadLinkedList.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
