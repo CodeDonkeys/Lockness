@@ -40,6 +40,8 @@
     <Reference Include="System" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AtomicMarkableReference.cs" />
+    <Compile Include="AtomicStampedReference.cs" />
     <Compile Include="LinkedList.cs" />
     <Compile Include="MadLinkedList.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

@@ -47,7 +47,7 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Skiplist\Lockness.csproj">
+    <ProjectReference Include="..\Lockness\Lockness.csproj">
       <Project>{d48a55c1-83cf-4978-b0b5-d7cb012d0bfb}</Project>
       <Name>Lockness</Name>
     </ProjectReference>
