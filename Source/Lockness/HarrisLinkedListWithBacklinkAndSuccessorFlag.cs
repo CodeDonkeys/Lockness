@@ -5,6 +5,10 @@ namespace CodeDonkeys.Lockness
 {
     public sealed class HarrisLinkedListWithBacklinkAndSuccessorFlag<TElement> : ISet<TElement>
     {
+        public HarrisLinkedListWithBacklinkAndSuccessorFlag(IComparer<TElement> comparer)
+        {
+        }
+
         public IEnumerator<TElement> GetEnumerator()
         {
             throw new System.NotImplementedException();
