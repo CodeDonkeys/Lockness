@@ -1,5 +1,4 @@
-﻿using System;
-using System.Threading;
+﻿using System.Threading;
 
 namespace CodeDonkeys.Lockness
 {
@@ -29,6 +28,11 @@ namespace CodeDonkeys.Lockness
             var localState = state;
             mark = localState.Mark;
             return localState.Reference;
+        }
+
+        public static implicit operator TReference(AtomicMarkableReference<TReference, TMark> instance)
+        {
+            return instance.state.Reference;
         }
 
         private volatile State state;
