@@ -38,8 +38,6 @@
     <Reference Include="System" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="LinkedListTests.cs" />
-    <Compile Include="MadLinkedList.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="BasicSetTests.cs" />
     <Compile Include="Tests.cs" />
