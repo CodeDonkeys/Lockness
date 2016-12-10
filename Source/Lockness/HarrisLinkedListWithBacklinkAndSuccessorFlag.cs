@@ -69,7 +69,7 @@ namespace CodeDonkeys.Lockness
                 //TryFlag
                 LinkedListLables expectedLables;
                 var expexctedReference = searchedNodes.LeftNode.NextReference.Get(out expectedLables);
-                if ((expectedLables & LinkedListLables.Mark) == LinkedListLables.Mark || (expectedLables & LinkedListLables.Flag) != LinkedListLables.Flag && !searchedNodes.LeftNode.NextReference.CompareAndSet(expexctedReference, expexctedReference, expectedLables, LinkedListLables.Flag))
+                if (expectedLables.HasLinkedListLable(LinkedListLables.Mark) || !(expectedLables.HasLinkedListLable(LinkedListLables.Flag)) && !searchedNodes.LeftNode.NextReference.CompareAndSet(expexctedReference, expexctedReference, expectedLables, LinkedListLables.Flag))
                 {
                     start = GetStart(searchedNodes.LeftNode);
                     continue;
@@ -79,7 +79,7 @@ namespace CodeDonkeys.Lockness
 
                 LinkedListLables oldLables;
                 var oldReference = searchedNodes.RightNode.NextReference.Get(out oldLables);
-                if ((oldLables & LinkedListLables.Flag) == LinkedListLables.Flag)
+                if (oldLables.HasLinkedListLable(LinkedListLables.Flag))
                 {
                     TryPhysicallyDelete(searchedNodes.RightNode, oldReference);
                     start = GetStart(searchedNodes.LeftNode);
@@ -88,7 +88,7 @@ namespace CodeDonkeys.Lockness
 
                 LinkedListLables newLables;
                 var newReference = searchedNodes.RightNode.NextReference.Get(out newLables);
-                if ((newLables & LinkedListLables.Mark) != LinkedListLables.Mark)
+                if (!newLables.HasLinkedListLable(LinkedListLables.Mark))
                 {
                     if (searchedNodes.RightNode.NextReference.CompareAndSet(oldReference, newReference, oldLables, LinkedListLables.Mark))
                         break;
@@ -104,9 +104,9 @@ namespace CodeDonkeys.Lockness
             var nextNode = head.NextReference.Get(out mark);
 
             //TODO Я бы написал Extentions HasFlag, который бы работал для конкретно этого типа и не использовал Enum.HasFlag
-            while ((mark & LinkedListLables.Mark) == LinkedListLables.Mark || nextNode.Element.CompareTo(key) < 0)
+            while (mark.HasLinkedListLable(LinkedListLables.Mark) || nextNode.Element.CompareTo(key) < 0)
             {
-                if ((mark & LinkedListLables.Mark) == LinkedListLables.Mark)
+                if (mark.HasLinkedListLable(LinkedListLables.Mark))
                 {
                     if (!TryPhysicallyDelete(currentNode, nextNode))
                     {
@@ -129,7 +129,7 @@ namespace CodeDonkeys.Lockness
             var start = currentNode;
             LinkedListLables lables;
             start.NextReference.Get(out lables);
-            while (start != head || (lables & LinkedListLables.Mark) == LinkedListLables.Mark)
+            while (start != head || lables.HasLinkedListLable(LinkedListLables.Mark))
             {
                 var backlink = start.Backlink;
                 if (backlink == null)
@@ -178,10 +178,7 @@ namespace CodeDonkeys.Lockness
             }
 
             public void Dispose()
-            {
-                //TODO Наверное, Dispose кидать в этом месте не самая хорошая идея
-                throw new NotImplementedException();
-            }
+            {}
 
             public bool MoveNext()
             {

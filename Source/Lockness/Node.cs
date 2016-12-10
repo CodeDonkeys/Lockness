@@ -10,6 +10,14 @@ namespace CodeDonkeys.Lockness
         Mark = 2
     }
 
+    public static class LinkedListLablesExtensions
+    {
+        public static bool HasLinkedListLable(this LinkedListLables flags, LinkedListLables flag)
+        {
+            return (flags & flag) == flag;
+        }
+    }
+
     public class Node<TElement> where TElement : IComparable
     {
         public readonly TElement Element;

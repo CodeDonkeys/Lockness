@@ -41,10 +41,10 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AtomicMarkableReference.cs" />
-    <Compile Include="ConcurrentSkipList.cs" />
+    <Compile Include="AtomicMarkableReferenceBuilder.cs" />
+    <Compile Include="SkipListWithBacklink.cs" />
     <Compile Include="HarrisLinkedList.cs" />
     <Compile Include="HarrisLinkedListWithBacklinkAndSuccessorFlag.cs" />
-    <Compile Include="IMap.cs" />
     <Compile Include="ISet.cs" />
     <Compile Include="SkipListNode.cs" />
     <Compile Include="Node.cs" />
