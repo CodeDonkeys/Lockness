@@ -10,8 +10,10 @@ namespace CodeDonkeys.Lockness
         Mark = 2
     }
 
+    //Я бы классы с префиксом Concurrent спрятал в ConcurrentSkipList
     public class ConcurrentSkipListNode<TKey, TValue> where TKey : IComparable
     {
+        //Не хватает volatile для DownNode, RootNode, Backlink
         public ConcurrentSkipListNode<TKey, TValue> DownNode;
         public ConcurrentSkipListRootNode<TKey, TValue> RootNode;
         public AtomicMarkableReference<ConcurrentSkipListNode<TKey, TValue>, SkipListLables> NextReference;
@@ -27,6 +29,8 @@ namespace CodeDonkeys.Lockness
 
     public class ConcurrentSkipListRootNode<TKey, TValue> : ConcurrentSkipListNode<TKey, TValue> where TKey : IComparable
     {
+        //Чего-то я не очень понял из чего этот узел все-таки состоит :)
+
         public readonly TKey Key;
         public readonly TValue Value;
         private TKey key;
@@ -44,6 +48,8 @@ namespace CodeDonkeys.Lockness
 
     public class ConcurrentSkipListHeadNode<TKey, TValue> : ConcurrentSkipListNode<TKey, TValue> where TKey : IComparable
     {
+        //Не хватает volatile для UpNode
+        //Я бы сделал обертку AtomicReference для ссылок
         public ConcurrentSkipListHeadNode<TKey, TValue> UpNode;
 
         public ConcurrentSkipListHeadNode(ConcurrentSkipListHeadNode<TKey, TValue> downNode, AtomicMarkableReference<ConcurrentSkipListNode<TKey, TValue>, SkipListLables> nextReference, ConcurrentSkipListHeadNode<TKey, TValue> upNode)

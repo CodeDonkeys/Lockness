@@ -103,6 +103,7 @@ namespace CodeDonkeys.Lockness
             LinkedListLables mark;
             var nextNode = head.NextReference.Get(out mark);
 
+            //TODO Я бы написал Extentions HasFlag, который бы работал для конкретно этого типа и не использовал Enum.HasFlag
             while ((mark & LinkedListLables.Mark) == LinkedListLables.Mark || nextNode.Element.CompareTo(key) < 0)
             {
                 if ((mark & LinkedListLables.Mark) == LinkedListLables.Mark)
@@ -178,6 +179,7 @@ namespace CodeDonkeys.Lockness
 
             public void Dispose()
             {
+                //TODO Наверное, Dispose кидать в этом месте не самая хорошая идея
                 throw new NotImplementedException();
             }
 

@@ -2,6 +2,11 @@
 
 namespace CodeDonkeys.Lockness
 {
+    //TODO Нет тестов, которые хотя бы проверяли в однопоточном сценарии
+    //TODO Не очень понял, зачем создан IMap, когда все остальные у нас ISet
+    //TODO Чтобы не страдать, можно сделать фабричный метод, который будет создавать AMR
+    //TODO Хотелось бы видеть Enumerator, который умеет обходить SkipList
+    //TODO Я бы старался сохранять именование реализаций, не используя общих слов Concurrent
     public class ConcurrentSkipList<TKey, TValue> : IMap<TKey, TValue> where TKey: IComparable
     {
         private readonly int maxLevel;
@@ -13,7 +18,6 @@ namespace CodeDonkeys.Lockness
             head = InitializeHeadAndTailTower(maxLevel);
             this.maxLevel = maxLevel;
             this.randomGenerator = new RandomGenerator();
-
         }
 
         public bool Add(TKey key, TValue value)
@@ -32,6 +36,7 @@ namespace CodeDonkeys.Lockness
                     return false;
                 }
                 currentLevel++;
+                //TODO В остальных местах мы вместо null для AMR кладем новый AMR с ссылкой в null
                 currentInsertedNode = new ConcurrentSkipListNode<TKey, TValue>(currentInsertedNode, newRootNode, null);
                 searchedNodes = SearchToGivenLevel(key, currentLevel);
             }
@@ -52,11 +57,13 @@ namespace CodeDonkeys.Lockness
 
         private bool NodeHasThisKey(TKey key, ConcurrentSkipListNode<TKey, TValue> node)
         {
+            //TODO Какой-то странный is, я бы понял, если бы мы наоборот еще проверяли.
             return !(node is ConcurrentSkipListHeadNode<TKey, TValue>) && node.RootNode.Key.CompareTo(key) == 0;
         }
 
         private bool InsertOneNode(ConcurrentSkipListNode<TKey, TValue> newNode, SearchedNodes nearbyNodes)
         {
+            //TODO Я за то, чтобы писать сразу по-взрослому со SpinWait(https://msdn.microsoft.com/ru-ru/library/ee722114(v=vs.110).aspx)
             while (true)
             {
                 if (NodeHasThisKey(newNode.RootNode.Key, nearbyNodes.LeftNode))
@@ -102,10 +109,12 @@ namespace CodeDonkeys.Lockness
         {
             SkipListLables mark;
             ConcurrentSkipListNode<TKey, TValue> currentNode = startNode;
+            //TODO Можно не пользовать Get если не нужны mark, AMR просто приводится к типу ссылки 
             var nextNode = currentNode.NextReference.Get(out mark);
             while (nextNode.NextReference != null && nextNode.RootNode.Key.CompareTo(key) <= 0)
             {
                 currentNode = nextNode;
+                //TODO Можно не пользовать Get если не нужны mark, AMR просто приводится к типу ссылки 
                 nextNode = currentNode.NextReference.Get(out mark);
             }
             return new SearchedNodes(currentNode, nextNode);
@@ -116,6 +125,8 @@ namespace CodeDonkeys.Lockness
             var currentNode = head;
             var currentLevel = 0;
             SkipListLables mark;
+            //TODO Можно не пользовать Get если не нужны mark, AMR просто приводится к типу ссылки
+            //TODO Кажется код станет не очень валидный, когда начнем инициализировать пустой AMR, так как будет нужно проверять значение которое лежит внутри NextReference, а не ссылку
             while (currentNode.NextReference.Get(out mark).NextReference != null)
             {
                 currentNode = currentNode.UpNode;
@@ -126,6 +137,10 @@ namespace CodeDonkeys.Lockness
 
         private class RandomGenerator
         {
+            //TODO Использование Random не потокобезопасно
+            //TODO Либо можно использовать ThreadStatic,
+            //TODO Либо можно поисследовать тему с псевдослучайными генераторами случайных чисел(https://en.wikipedia.org/wiki/Xorshift)
+            //TODO Я бы сделал интерфейс, который возвращает количество уровней сразу, чтобы можно было за один присест генерировать уровен
             private Random rand;
 
             public RandomGenerator()
