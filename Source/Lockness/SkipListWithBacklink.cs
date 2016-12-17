@@ -53,7 +53,16 @@ namespace CodeDonkeys.Lockness
 
         public bool Remove(TElement element)
         {
-            throw new NotImplementedException();
+            // не уверена, что это лучший способ...
+            var searchedNodes = SearchToGivenLevel(element, 1);
+            var deletedNode = searchedNodes.RightNode;
+            if (deletedNode.RootNode.Element.CompareTo(element) != 0)
+                return false;
+            var previousNode = SearchToGivenLevel(searchedNodes.LeftNode.RootNode.Element, 1).LeftNode;
+            if (DeleteOneNode(previousNode, deletedNode))
+                return false;
+            SearchToGivenLevel(element, 2);
+            return true;
         }
 
         public IEnumerator<TElement> GetEnumerator()
@@ -71,12 +80,22 @@ namespace CodeDonkeys.Lockness
             var spin = new SpinWait();
             while (true)
             {
-                if (nearbyNodes.LeftNode.ElementIsEqualsTo(newNode.RootNode.Element))
+                var previousNode = nearbyNodes.LeftNode;
+                if (previousNode.ElementIsEqualsTo(newNode.RootNode.Element))
                     return false;
                 newNode.NextReference = AMRBuilder.Build(nearbyNodes.RightNode, SkipListLables.None);
-                if (nearbyNodes.LeftNode.NextReference.CompareAndSet(nearbyNodes.RightNode, newNode, SkipListLables.None, SkipListLables.None))
+                if (previousNode.NextReference.CompareAndSet(nearbyNodes.RightNode, newNode, SkipListLables.None, SkipListLables.None))
                     return true;
-                nearbyNodes = SearchOnOneLevel(newNode.RootNode.Element, nearbyNodes.LeftNode);
+                else
+                {
+                    SkipListLables oldLable;
+                    nearbyNodes.RightNode.NextReference.Get(out oldLable);
+                    if (oldLable.HasLable(SkipListLables.Flag))
+                        DeleteOneNode(nearbyNodes.RightNode, nearbyNodes.RightNode.NextReference);
+                    while (oldLable.HasLable(SkipListLables.Mark))
+                        previousNode = previousNode.Backlink;
+                }
+                nearbyNodes = SearchOnOneLevel(newNode.RootNode.Element, previousNode);
                 spin.SpinOnce();
             }
         }
@@ -116,6 +135,13 @@ namespace CodeDonkeys.Lockness
             SkipListNodeWithBacklink<TElement> nextNode = currentNode.NextReference;
             while (nextNode.NextReference != null && nextNode.RootNode.Element.CompareTo(key) <= 0)
             {
+                SkipListLables rootNodeLable;
+                nextNode.RootNode.NextReference.Get(out rootNodeLable);
+                while (rootNodeLable.HasLable(SkipListLables.Mark))
+                {
+                    DeleteOneNode(currentNode, nextNode);
+                    nextNode = currentNode.NextReference;
+                }
                 currentNode = nextNode;
                 nextNode = currentNode.NextReference;
             }
@@ -134,6 +160,65 @@ namespace CodeDonkeys.Lockness
                 nextNode = currentNode.NextReference;
             }
             return new NodeOnLevel(currentLevel, currentNode);
+        }
+
+        private bool DeleteOneNode(SkipListNodeWithBacklink<TElement> previousNode, SkipListNodeWithBacklink<TElement> deletedNode)
+        {
+            if (!TrySetFlagLable(ref previousNode, deletedNode))
+                return false;
+            SetBacklinkAndMarkLable(previousNode, deletedNode);
+            TryPhysicallyDeleteNode(previousNode, deletedNode);
+            return true; 
+        }
+
+        private bool TrySetFlagLable(ref SkipListNodeWithBacklink<TElement> previousNode, SkipListNodeWithBacklink<TElement> deletedNode)
+        {
+            var spin = new SpinWait();
+            while (true)
+            {
+                SkipListLables oldLable;
+                var nextNode = previousNode.NextReference.Get(out oldLable);
+                if (oldLable.HasLable(SkipListLables.Flag))
+                    return true;
+                if (previousNode.NextReference.CompareAndSet(nextNode, nextNode, SkipListLables.None, SkipListLables.Flag))
+                    return true;
+
+                SkipListLables currentLable;
+                previousNode.NextReference.Get(out currentLable);
+                while (currentLable.HasLable(SkipListLables.Mark))
+                {
+                    previousNode = previousNode.Backlink;
+                    previousNode.NextReference.Get(out currentLable);
+                }
+
+                if (SearchOnOneLevel(deletedNode.RootNode.Element, previousNode).LeftNode != deletedNode)
+                    return false;
+
+                spin.SpinOnce();
+            }
+        }
+
+        private void SetBacklinkAndMarkLable(SkipListNodeWithBacklink<TElement> previousNode, SkipListNodeWithBacklink<TElement> deletedNode)
+        {
+            deletedNode.Backlink = previousNode;
+            var spin = new SpinWait();
+            while (true)
+            {
+                SkipListLables oldLable;
+                var nextNode = deletedNode.NextReference.Get(out oldLable);
+                if (oldLable.HasLable(SkipListLables.Mark))
+                    return;
+                if (deletedNode.NextReference.CompareAndSet(nextNode, nextNode, SkipListLables.None, SkipListLables.Mark))
+                    return;
+                spin.SpinOnce();
+            }
+        }
+
+        private void TryPhysicallyDeleteNode(SkipListNodeWithBacklink<TElement> previousNode, SkipListNodeWithBacklink<TElement> deletedNode)
+        {
+            SkipListLables oldLable;
+            var nextNode = deletedNode.NextReference.Get(out oldLable);
+            previousNode.NextReference.CompareAndSet(deletedNode, nextNode, SkipListLables.Flag, SkipListLables.None);
         }
 
         //XORShift

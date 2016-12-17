@@ -12,9 +12,9 @@ namespace CodeDonkeys.Lockness
 
     public static class LinkedListLablesExtensions
     {
-        public static bool HasLinkedListLable(this LinkedListLables flags, LinkedListLables flag)
+        public static bool HasLinkedListLable(this LinkedListLables thisLable, LinkedListLables expectedLable)
         {
-            return (flags & flag) == flag;
+            return (thisLable & expectedLable) == expectedLable;
         }
     }
 

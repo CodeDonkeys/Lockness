@@ -10,6 +10,14 @@ namespace CodeDonkeys.Lockness
         Mark = 2
     }
 
+    internal static class SkipListLablesExtensions
+    {
+        public static bool HasLable(this SkipListLables thisLable, SkipListLables expectedLable)
+        {
+            return (thisLable & expectedLable) == expectedLable;
+        }
+    }
+
     //Я бы классы с префиксом Concurrent спрятал в ConcurrentSkipList
     //Я подумала и решила, что переименую)
     internal class SkipListNodeWithBacklink<TElement> where TElement : IComparable
