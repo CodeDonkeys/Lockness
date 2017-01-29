@@ -6,26 +6,31 @@ using System.Threading;
 namespace CodeDonkeys.Lockness
 {
     //TODO Нет тестов, которые хотя бы проверяли в однопоточном сценарии
-    public class SkipListWithBacklink<TElement> : ISet<TElement> where TElement: IComparable
+    public sealed class SkipListWithBacklink<TElement> : ISet<TElement>
     {
+        private readonly IComparer<TElement> comparer;
         private readonly int maxLevel;
         private readonly RandomGenerator randomGenerator;
         private readonly SkipListHeadNodeWithBacklink<TElement> head;
         private readonly AtomicMarkableReferenceBuilder<SkipListNodeWithBacklink<TElement>, SkipListLables> AMRBuilder;
 
-        public SkipListWithBacklink(int maxLevel)
+        public SkipListWithBacklink(IComparer<TElement> elementComparer, int? maxLevel)
         {
-            head = InitializeHeadAndTailTower(maxLevel);
-            this.maxLevel = maxLevel;
-            randomGenerator = new RandomGenerator();
+            this.maxLevel = maxLevel ?? int.MaxValue;
+            comparer = elementComparer;
             AMRBuilder = new AtomicMarkableReferenceBuilder<SkipListNodeWithBacklink<TElement>, SkipListLables>();
+            head = InitializeHeadAndTailTower(this.maxLevel);
+            randomGenerator = new RandomGenerator();
         }
+
+        public SkipListWithBacklink(IComparer<TElement> elementComparer) : this(elementComparer, 1000)
+        { }
 
         public bool Add(TElement element)
         {
-            var searchedNodes = SearchToGivenLevel(element, 0);
+            var searchedNodes = SearchToGivenLevel(element, 0, SearchStopCondition.LessOrEqual);
             var leftNode = searchedNodes.LeftNode;
-            if (leftNode.ElementIsEqualsTo(element))
+            if (leftNode.ElementIsEqualsTo(element, comparer))
                 return false;
             var newRootNode = new SkipListRootNodeWithBacklink<TElement>(element, null);
             var currentInsertedNode = (SkipListNodeWithBacklink<TElement>)newRootNode;
@@ -39,35 +44,35 @@ namespace CodeDonkeys.Lockness
                 }
                 currentLevel++;
                 currentInsertedNode = new SkipListNodeWithBacklink<TElement>(currentInsertedNode, newRootNode, AMRBuilder.Empty());
-                searchedNodes = SearchToGivenLevel(element, currentLevel);
+                searchedNodes = SearchToGivenLevel(element, currentLevel, SearchStopCondition.LessOrEqual);
             }
             return true;
         }
 
         public bool Contains(TElement element)
         {
-            var searchedNodes = SearchToGivenLevel(element, 0);
+            var searchedNodes = SearchToGivenLevel(element, 0, SearchStopCondition.LessOrEqual);
             var leftNode = searchedNodes.LeftNode;
-            return leftNode.ElementIsEqualsTo(element);
+            return leftNode.ElementIsEqualsTo(element, comparer);
         }
 
         public bool Remove(TElement element)
         {
-            // не уверена, что это лучший способ...
-            var searchedNodes = SearchToGivenLevel(element, 1);
+            //вообще неправильно делала это место)
+            var searchedNodes = SearchToGivenLevel(element, 0, SearchStopCondition.Less);
             var deletedNode = searchedNodes.RightNode;
-            if (deletedNode.RootNode.Element.CompareTo(element) != 0)
+            if (deletedNode is SkipListHeadNodeWithBacklink<TElement> || deletedNode is SkipListTailNodeWithBacklink<TElement> || comparer.Compare(deletedNode.RootNode.Element, element) != 0)
                 return false;
-            var previousNode = SearchToGivenLevel(searchedNodes.LeftNode.RootNode.Element, 1).LeftNode;
-            if (DeleteOneNode(previousNode, deletedNode))
+            var previousNode = searchedNodes.LeftNode;
+            if (!DeleteOneNode(previousNode, deletedNode))
                 return false;
-            SearchToGivenLevel(element, 2);
+            SearchToGivenLevel(element, 1, SearchStopCondition.Less);
             return true;
         }
 
         public IEnumerator<TElement> GetEnumerator()
         {
-            return new Enumerator(head.RootNode);
+            return new Enumerator(head);
         }
 
         IEnumerator IEnumerable.GetEnumerator()
@@ -81,7 +86,7 @@ namespace CodeDonkeys.Lockness
             while (true)
             {
                 var previousNode = nearbyNodes.LeftNode;
-                if (previousNode.ElementIsEqualsTo(newNode.RootNode.Element))
+                if (previousNode.ElementIsEqualsTo(newNode.RootNode.Element, comparer))
                     return false;
                 newNode.NextReference = AMRBuilder.Build(nearbyNodes.RightNode, SkipListLables.None);
                 if (previousNode.NextReference.CompareAndSet(nearbyNodes.RightNode, newNode, SkipListLables.None, SkipListLables.None))
@@ -95,7 +100,7 @@ namespace CodeDonkeys.Lockness
                     while (oldLable.HasLable(SkipListLables.Mark))
                         previousNode = previousNode.Backlink;
                 }
-                nearbyNodes = SearchOnOneLevel(newNode.RootNode.Element, previousNode);
+                nearbyNodes = SearchOnOneLevel(newNode.RootNode.Element, previousNode, SearchStopCondition.LessOrEqual);
                 spin.SpinOnce();
             }
         }
@@ -116,24 +121,27 @@ namespace CodeDonkeys.Lockness
             return previousNode;
         }
 
-        private SearchedNodes SearchToGivenLevel(TElement key, int level)
+        private SearchedNodes SearchToGivenLevel(TElement key, int level, SearchStopCondition searchStopCondition)
         {
             var nodeOnLevel = GetUpperHeadNode();
             var currentLevel = nodeOnLevel.Level;
-            var searchedNodes = SearchOnOneLevel(key, nodeOnLevel.Node);
+            var searchedNodes = SearchOnOneLevel(key, nodeOnLevel.Node, searchStopCondition);
             while (currentLevel > level)
             {
-                searchedNodes = SearchOnOneLevel(key, searchedNodes.LeftNode.DownNode);
+                searchedNodes = SearchOnOneLevel(key, searchedNodes.LeftNode.DownNode, searchStopCondition);
                 currentLevel--;
             }
             return searchedNodes;
         }
 
-        private SearchedNodes SearchOnOneLevel(TElement key, SkipListNodeWithBacklink<TElement> startNode)
+        private SearchedNodes SearchOnOneLevel(TElement key, SkipListNodeWithBacklink<TElement> startNode, SearchStopCondition searchStopCondition)
         {
-            SkipListNodeWithBacklink<TElement> currentNode = startNode;
+            var stopCondition = searchStopCondition == SearchStopCondition.Less
+                ? new Func<TElement, TElement, bool>((key1, key2) => comparer.Compare(key1, key2) < 0)
+                : new Func<TElement, TElement, bool>((key1, key2) => comparer.Compare(key1, key2) <= 0);
+            SkipListNodeWithBacklink <TElement> currentNode = startNode;
             SkipListNodeWithBacklink<TElement> nextNode = currentNode.NextReference;
-            while (nextNode.NextReference != null && nextNode.RootNode.Element.CompareTo(key) <= 0)
+            while (nextNode.NextReference != null && stopCondition(nextNode.RootNode.Element, key))
             {
                 SkipListLables rootNodeLable;
                 nextNode.RootNode.NextReference.Get(out rootNodeLable);
@@ -191,7 +199,7 @@ namespace CodeDonkeys.Lockness
                     previousNode.NextReference.Get(out currentLable);
                 }
 
-                if (SearchOnOneLevel(deletedNode.RootNode.Element, previousNode).LeftNode != deletedNode)
+                if (SearchOnOneLevel(deletedNode.RootNode.Element, previousNode, SearchStopCondition.LessOrEqual).LeftNode != deletedNode)
                     return false;
 
                 spin.SpinOnce();
@@ -221,6 +229,12 @@ namespace CodeDonkeys.Lockness
             previousNode.NextReference.CompareAndSet(deletedNode, nextNode, SkipListLables.Flag, SkipListLables.None);
         }
 
+        private enum SearchStopCondition
+        {
+            Less,
+            LessOrEqual
+        }
+
         //XORShift
         private class RandomGenerator
         {
@@ -244,7 +258,7 @@ namespace CodeDonkeys.Lockness
                     newState ^= (newState << 21);
                     newState ^= (newState >> 35);
                     newState ^= (newState << 4);
-                } while (Interlocked.CompareExchange(ref state, newState, oldState) == oldState);
+                } while (Interlocked.CompareExchange(ref state, newState, oldState) != oldState);
                 var result = (int) (state % maxValue);
                 return (result < 0) ? -result : result;
             }
@@ -275,14 +289,14 @@ namespace CodeDonkeys.Lockness
         }
         private struct Enumerator : IEnumerator<TElement>
         {
-            private readonly SkipListRootNodeWithBacklink<TElement> head;
+            private readonly SkipListNodeWithBacklink<TElement> head;
             private SkipListNodeWithBacklink<TElement> current;
 
             public TElement Current => current.RootNode.Element;
 
             object IEnumerator.Current => current.RootNode.Element;
 
-            internal Enumerator(SkipListRootNodeWithBacklink<TElement> head)
+            internal Enumerator(SkipListNodeWithBacklink<TElement> head)
             {
                 this.head = head;
                 current = head;

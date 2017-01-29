@@ -18,7 +18,7 @@ namespace CodeDonkeys.Lockness
         }
     }
 
-    public class Node<TElement> where TElement : IComparable
+    public class Node<TElement>
     {
         public readonly TElement Element;
         public Node<TElement> Backlink;

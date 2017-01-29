@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace CodeDonkeys.Lockness
 {
@@ -20,7 +21,7 @@ namespace CodeDonkeys.Lockness
 
     //Я бы классы с префиксом Concurrent спрятал в ConcurrentSkipList
     //Я подумала и решила, что переименую)
-    internal class SkipListNodeWithBacklink<TElement> where TElement : IComparable
+    internal class SkipListNodeWithBacklink<TElement>
     {
         public volatile SkipListNodeWithBacklink<TElement> DownNode;
         public volatile SkipListRootNodeWithBacklink<TElement> RootNode;
@@ -34,13 +35,13 @@ namespace CodeDonkeys.Lockness
             NextReference = nextReference;
         }
 
-        public bool ElementIsEqualsTo(TElement element)
+        public bool ElementIsEqualsTo(TElement element, IComparer<TElement> elementComparer)
         {
-            return (RootNode?.Element.CompareTo(element) ?? 0) == 0;
+            return RootNode != null && elementComparer.Compare(RootNode.Element, element) == 0;
         }
     }
 
-    internal class SkipListRootNodeWithBacklink<TElement> : SkipListNodeWithBacklink<TElement> where TElement : IComparable
+    internal class SkipListRootNodeWithBacklink<TElement> : SkipListNodeWithBacklink<TElement>
     {
         //Чего-то я не очень понял из чего этот узел все-таки состоит :)
         //Я чет сама в изумлении, откуда это взялось :)
@@ -54,7 +55,7 @@ namespace CodeDonkeys.Lockness
         }
     }
 
-    internal class SkipListHeadNodeWithBacklink<TElement> : SkipListNodeWithBacklink<TElement> where TElement : IComparable
+    internal class SkipListHeadNodeWithBacklink<TElement> : SkipListNodeWithBacklink<TElement>
     {
         //Я бы сделал обертку AtomicReference для ссылок
         //Тут в будущем должны появиться флаги вроде
@@ -67,7 +68,7 @@ namespace CodeDonkeys.Lockness
         }
     }
 
-    internal class SkipListTailNodeWithBacklink<TElement> : SkipListNodeWithBacklink<TElement> where TElement : IComparable
+    internal class SkipListTailNodeWithBacklink<TElement> : SkipListNodeWithBacklink<TElement>
     {
         public SkipListTailNodeWithBacklink() : base(null, null, null)
         { }

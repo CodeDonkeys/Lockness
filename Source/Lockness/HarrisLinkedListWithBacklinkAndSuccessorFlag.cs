@@ -4,13 +4,15 @@ using System.Collections.Generic;
 
 namespace CodeDonkeys.Lockness
 {
-    public sealed class HarrisLinkedListWithBacklinkAndSuccessorFlag<TElement> : ISet<TElement> where TElement : IComparable
+    public sealed class HarrisLinkedListWithBacklinkAndSuccessorFlag<TElement> : ISet<TElement>
     {
+        private readonly IComparer<TElement> comparer;
         private readonly Node<TElement> head;
         private readonly Node<TElement> tail;
 
-        public HarrisLinkedListWithBacklinkAndSuccessorFlag()
+        public HarrisLinkedListWithBacklinkAndSuccessorFlag(IComparer<TElement> elementComparer)
         {
+            comparer = elementComparer;
             tail = new Node<TElement>(default(TElement), null);
             head = new Node<TElement>(default(TElement), new AtomicMarkableReference<Node<TElement>, LinkedListLables>(tail, LinkedListLables.None));
         }
@@ -32,7 +34,7 @@ namespace CodeDonkeys.Lockness
             while (true)
             {
                 var searchedNodes = Search(element, start);
-                if (searchedNodes.RightNode != tail && searchedNodes.RightNode.Element.CompareTo(element) == 0)
+                if (searchedNodes.RightNode != tail && comparer.Compare(searchedNodes.RightNode.Element, element) == 0)
                     return false;
                 var newNode = new Node<TElement>(element, new AtomicMarkableReference<Node<TElement>, LinkedListLables>(searchedNodes.RightNode, LinkedListLables.None));
 
@@ -52,7 +54,7 @@ namespace CodeDonkeys.Lockness
         {
             var searchedNodes = Search(element, head);
 
-            if (searchedNodes.RightNode == tail || searchedNodes.RightNode.Element.CompareTo(element) != 0)
+            if (searchedNodes.RightNode == tail || comparer.Compare(searchedNodes.RightNode.Element, element) != 0)
                 return false;
             return true;
         }
@@ -63,7 +65,7 @@ namespace CodeDonkeys.Lockness
             while (true)
             {
                 var searchedNodes = Search(element, start);
-                if (searchedNodes.RightNode == tail || searchedNodes.RightNode.Element.CompareTo(element) != 0)
+                if (searchedNodes.RightNode == tail || comparer.Compare(searchedNodes.RightNode.Element, element) != 0)
                     return false;
 
                 //TryFlag
@@ -102,9 +104,8 @@ namespace CodeDonkeys.Lockness
             var currentNode = head;
             LinkedListLables mark;
             var nextNode = head.NextReference.Get(out mark);
-
-            //TODO Я бы написал Extentions HasFlag, который бы работал для конкретно этого типа и не использовал Enum.HasFlag
-            while (mark.HasLinkedListLable(LinkedListLables.Mark) || nextNode.Element.CompareTo(key) < 0)
+            
+            while (mark.HasLinkedListLable(LinkedListLables.Mark) || comparer.Compare(nextNode.Element, key) < 0)
             {
                 if (mark.HasLinkedListLable(LinkedListLables.Mark))
                 {
@@ -142,9 +143,8 @@ namespace CodeDonkeys.Lockness
 
         private bool TryPhysicallyDelete(Node<TElement> currentNode, Node<TElement> nextNode)
         {
-            LinkedListLables lables;
-            var oldReference = currentNode.NextReference.Get(out lables);
-            var newReference = nextNode.NextReference.Get(out lables);
+            var oldReference = currentNode.NextReference;
+            var newReference = nextNode.NextReference;
             currentNode.NextReference.CompareAndSet(oldReference, newReference, LinkedListLables.Flag, LinkedListLables.None);
             return true;
         }
@@ -182,10 +182,8 @@ namespace CodeDonkeys.Lockness
 
             public bool MoveNext()
             {
-                if (currentNode == tail)
-                    return false;
                 currentNode = currentNode.NextReference;
-                return true;
+                return currentNode != tail;
             }
 
             public void Reset()
