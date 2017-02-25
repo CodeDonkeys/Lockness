@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Threading;
 
 namespace CodeDonkeys.Lockness
 {
@@ -33,74 +34,106 @@ namespace CodeDonkeys.Lockness
 
             while (true)
             {
-                var searchedNodes = Search(element, start);
-                if (searchedNodes.RightNode != tail && comparer.Compare(searchedNodes.RightNode.Element, element) == 0)
+                var nearbyNodes = Search(element, start, SearchStopCondition.LessOrEqual);
+                if (nearbyNodes.RightNode != tail && comparer.Compare(nearbyNodes.RightNode.Element, element) == 0)
                     return false;
-                var newNode = new Node<TElement>(element, new AtomicMarkableReference<Node<TElement>, LinkedListLables>(searchedNodes.RightNode, LinkedListLables.None));
+                var newNode = new Node<TElement>(element, new AtomicMarkableReference<Node<TElement>, LinkedListLables>(nearbyNodes.RightNode, LinkedListLables.None));
 
                 LinkedListLables oldLables;
-                var oldReference = searchedNodes.LeftNode.NextReference.Get(out oldLables);
-                if (oldLables != LinkedListLables.None || oldReference != searchedNodes.RightNode)
+                var oldReference = nearbyNodes.LeftNode.NextReference.Get(out oldLables);
+                if (oldLables != LinkedListLables.None || oldReference != nearbyNodes.RightNode)
                 {
-                    start = GetStart(searchedNodes.LeftNode);
+                    start = GetStart(nearbyNodes.LeftNode);
                     continue;
                 }
-                if (searchedNodes.LeftNode.NextReference.CompareAndSet(oldReference, newNode, oldLables, LinkedListLables.None))
+                if (nearbyNodes.LeftNode.NextReference.CompareAndSet(oldReference, newNode, oldLables, LinkedListLables.None))
                     return true;
             }
         }
 
         public bool Contains(TElement element)
         {
-            var searchedNodes = Search(element, head);
+            var nearbyNodes = Search(element, head, SearchStopCondition.LessOrEqual);
 
-            if (searchedNodes.RightNode == tail || comparer.Compare(searchedNodes.RightNode.Element, element) != 0)
+            if (nearbyNodes.RightNode == tail || comparer.Compare(nearbyNodes.RightNode.Element, element) != 0)
                 return false;
             return true;
         }
 
         public bool Remove(TElement element)
         {
-            var start = head;
-            while (true)
-            {
-                var searchedNodes = Search(element, start);
-                if (searchedNodes.RightNode == tail || comparer.Compare(searchedNodes.RightNode.Element, element) != 0)
-                    return false;
-
-                //TryFlag
-                LinkedListLables expectedLables;
-                var expexctedReference = searchedNodes.LeftNode.NextReference.Get(out expectedLables);
-                if (expectedLables.HasLinkedListLable(LinkedListLables.Mark) || !(expectedLables.HasLinkedListLable(LinkedListLables.Flag)) && !searchedNodes.LeftNode.NextReference.CompareAndSet(expexctedReference, expexctedReference, expectedLables, LinkedListLables.Flag))
-                {
-                    start = GetStart(searchedNodes.LeftNode);
-                    continue;
-                }
-
-                searchedNodes.RightNode.Backlink = searchedNodes.LeftNode;
-
-                LinkedListLables oldLables;
-                var oldReference = searchedNodes.RightNode.NextReference.Get(out oldLables);
-                if (oldLables.HasLinkedListLable(LinkedListLables.Flag))
-                {
-                    TryPhysicallyDelete(searchedNodes.RightNode, oldReference);
-                    start = GetStart(searchedNodes.LeftNode);
-                    continue;
-                }
-
-                LinkedListLables newLables;
-                var newReference = searchedNodes.RightNode.NextReference.Get(out newLables);
-                if (!newLables.HasLinkedListLable(LinkedListLables.Mark))
-                {
-                    if (searchedNodes.RightNode.NextReference.CompareAndSet(oldReference, newReference, oldLables, LinkedListLables.Mark))
-                        break;
-                }
-            }
+            var nearbyNodes = Search(element, head, SearchStopCondition.Less);
+            var deletedNode = nearbyNodes.RightNode;
+            if (deletedNode == head || deletedNode == tail || comparer.Compare(deletedNode.Element, element) != 0)
+                return false;
+            var previousNode = nearbyNodes.LeftNode;
+            if (!TrySetFlagLable(ref previousNode, deletedNode))
+                return false;
+            SetBacklinkAndMarkLable(previousNode, deletedNode);
+            TryPhysicallyDeleteNode(previousNode, deletedNode);
             return true;
         }
-
-        private SearchedNodes Search(TElement key, Node<TElement> start)
+        private bool TrySetFlagLable(ref Node<TElement> previousNode, Node<TElement> deletedNode)
         {
+            var spin = new SpinWait();
+            while (true)
+            {
+                LinkedListLables oldLable;
+                var nextNode = previousNode.NextReference.Get(out oldLable);
+                if (oldLable.HasLinkedListLable(LinkedListLables.Flag))
+                    return true;
+                if (previousNode.NextReference.CompareAndSet(nextNode, nextNode, LinkedListLables.None, LinkedListLables.Flag))
+                    return true;
+
+                LinkedListLables currentLable;
+                previousNode.NextReference.Get(out currentLable);
+                while (currentLable.HasLinkedListLable(LinkedListLables.Mark))
+                {
+                    previousNode = previousNode.Backlink;
+                    previousNode.NextReference.Get(out currentLable);
+                }
+
+                if (Search(deletedNode.Element, previousNode, SearchStopCondition.LessOrEqual).LeftNode != deletedNode)
+                    return false;
+
+                spin.SpinOnce();
+            }
+        }
+
+        private void SetBacklinkAndMarkLable(Node<TElement> previousNode, Node<TElement> deletedNode)
+        {
+            deletedNode.Backlink = previousNode;
+            var spin = new SpinWait();
+            while (true)
+            {
+                LinkedListLables oldLable;
+                var nextNode = deletedNode.NextReference.Get(out oldLable);
+                if (oldLable.HasLinkedListLable(LinkedListLables.Mark))
+                    return;
+                if (deletedNode.NextReference.CompareAndSet(nextNode, nextNode, LinkedListLables.None, LinkedListLables.Mark))
+                    return;
+                spin.SpinOnce();
+            }
+        }
+
+        private void TryPhysicallyDeleteNode(Node<TElement> previousNode, Node<TElement> deletedNode)
+        {
+            LinkedListLables oldLable;
+            var nextNode = deletedNode.NextReference.Get(out oldLable);
+            previousNode.NextReference.CompareAndSet(deletedNode, nextNode, LinkedListLables.Flag, LinkedListLables.None);
+        }
+
+        private enum SearchStopCondition
+        {
+            Less,
+            LessOrEqual
+        }
+
+        private SearchedNodes Search(TElement key, Node<TElement> start, SearchStopCondition searchStopCondition)
+        {
+            var stopCondition = searchStopCondition == SearchStopCondition.Less
+                ? new Func<TElement, TElement, bool>((key1, key2) => comparer.Compare(key1, key2) < 0)
+                : new Func<TElement, TElement, bool>((key1, key2) => comparer.Compare(key1, key2) <= 0);
             var currentNode = head;
             LinkedListLables mark;
             var nextNode = head.NextReference.Get(out mark);
