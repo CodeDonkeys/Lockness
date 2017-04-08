@@ -257,17 +257,17 @@ namespace CodeDonkeys.Lockness
         }
         private struct Enumerator : IEnumerator<TElement>
         {
-            private readonly SkipListRootNodeWithBacklink<TElement> head;
-            private SkipListRootNodeWithBacklink<TElement> current;
+            private readonly SkipListNodeWithBacklink<TElement> head;
+            private SkipListNodeWithBacklink<TElement> current;
 
-            public TElement Current => current.Element;
+            public TElement Current => current.RootNode.Element;
 
-            object IEnumerator.Current => current.Element;
+            object IEnumerator.Current => current.RootNode.Element;
 
             internal Enumerator(SkipListNodeWithBacklink<TElement> head)
             {
-                this.head = head.RootNode;
-                current = this.head;
+                this.head = head;
+                current = head;
             }
 
             public void Dispose()
@@ -276,7 +276,7 @@ namespace CodeDonkeys.Lockness
 
             public bool MoveNext()
             {
-                current = (SkipListRootNodeWithBacklink<TElement>)current.NextReference;
+                current = current.NextReference;
                 return !(current is SkipListTailNodeWithBacklink<TElement>);
             }
 

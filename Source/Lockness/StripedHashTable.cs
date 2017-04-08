@@ -38,7 +38,7 @@ namespace CodeDonkeys.Lockness
             var hash = GetHash(element);
             try
             {
-                Monitor.Enter(lockObects[hash]);
+                Monitor.Enter(lockObects[hash % lockObects.Length]);
                 if (FindInOneHashLine(hash, element))
                 {
                     return false;
@@ -51,7 +51,7 @@ namespace CodeDonkeys.Lockness
             }
             finally
             {
-                Monitor.Exit(lockObects[hash]);
+                Monitor.Exit(lockObects[hash % lockObects.Length]);
             }
 
             if ((double) filledCount / size > maxFilledRatio)
@@ -73,7 +73,7 @@ namespace CodeDonkeys.Lockness
             var hash = GetHash(element);
             try
             {
-                Monitor.Enter(lockObects[hash]);
+                Monitor.Enter(lockObects[hash % lockObects.Length]);
                 if (!FindInOneHashLine(hash, element))
                 {
                     return false;
@@ -82,7 +82,7 @@ namespace CodeDonkeys.Lockness
             }
             finally
             {
-                Monitor.Exit(lockObects[hash]);
+                Monitor.Exit(lockObects[hash % lockObects.Length]);
             }
 
             return true;
@@ -90,10 +90,9 @@ namespace CodeDonkeys.Lockness
 
         private void Resize()
         {
-            var oldLockObjects = lockObects;
             try
             {
-                foreach (var lockObect in oldLockObjects)
+                foreach (var lockObect in lockObects)
                 {
                     Monitor.Enter(lockObect);
                 }
@@ -121,12 +120,10 @@ namespace CodeDonkeys.Lockness
                     }
                 }
                 table = newTable;
-
-                lockObects = Enumerable.Range(0, size).Select(x => new object()).ToArray();
             }
             finally
             {
-                foreach (var lockObect in oldLockObjects)
+                foreach (var lockObect in lockObects)
                 {
                     Monitor.Exit(lockObect);
                 }

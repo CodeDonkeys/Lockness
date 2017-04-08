@@ -42,7 +42,6 @@
   <ItemGroup>
     <Compile Include="AtomicMarkableReference.cs" />
     <Compile Include="LockBasedRedBlackTree.cs" />
-    <Compile Include="RedBlackTree.cs" />
     <Compile Include="SkipListWithBacklink.cs" />
     <Compile Include="HarrisLinkedList.cs" />
     <Compile Include="HarrisLinkedListWithBacklinkAndSuccessorFlag.cs" />
