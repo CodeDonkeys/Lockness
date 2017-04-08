@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 
@@ -11,19 +12,14 @@ namespace CodeDonkeys.Lockness
         private readonly int maxLevel;
         private readonly RandomGenerator randomGenerator;
         private readonly SkipListHeadNodeWithBacklink<TElement> head;
-        private readonly AtomicMarkableReferenceBuilder<SkipListNodeWithBacklink<TElement>, SkipListLables> AMRBuilder;
 
-        public SkipListWithBacklink(IComparer<TElement> elementComparer, int? maxLevel)
+        public SkipListWithBacklink(IComparer<TElement> elementComparer, int maxLevel = 32)
         {
-            this.maxLevel = maxLevel ?? int.MaxValue;
+            this.maxLevel = maxLevel;
             comparer = elementComparer;
-            AMRBuilder = new AtomicMarkableReferenceBuilder<SkipListNodeWithBacklink<TElement>, SkipListLables>();
             head = InitializeHeadAndTailTower(this.maxLevel);
             randomGenerator = new RandomGenerator();
         }
-
-        public SkipListWithBacklink(IComparer<TElement> elementComparer) : this(elementComparer, 1000)
-        { }
 
         public bool Add(TElement element)
         {
@@ -42,7 +38,7 @@ namespace CodeDonkeys.Lockness
                     return false;
                 }
                 currentLevel++;
-                currentInsertedNode = new SkipListNodeWithBacklink<TElement>(currentInsertedNode, newRootNode, AMRBuilder.Empty());
+                currentInsertedNode = new SkipListNodeWithBacklink<TElement>(currentInsertedNode, newRootNode, AtomicMarkableReference<SkipListNodeWithBacklink<TElement>, SkipListLables>.Empty());
                 nearbyNodes = SearchToGivenLevel(element, currentLevel, SearchStopCondition.LessOrEqual);
             }
             return true;
@@ -86,7 +82,7 @@ namespace CodeDonkeys.Lockness
                 var previousNode = nearbyNodes.LeftNode;
                 if (previousNode.ElementIsEqualsTo(newNode.RootNode.Element, comparer))
                     return false;
-                newNode.NextReference = AMRBuilder.Build(nearbyNodes.RightNode, SkipListLables.None);
+                newNode.NextReference = AtomicMarkableReference<SkipListNodeWithBacklink<TElement>, SkipListLables>.New(nearbyNodes.RightNode, SkipListLables.None);
                 if (previousNode.NextReference.CompareAndSet(nearbyNodes.RightNode, newNode, SkipListLables.None, SkipListLables.None))
                     return true;
 
@@ -107,11 +103,11 @@ namespace CodeDonkeys.Lockness
         {
             //нам неважно, много хвостовых вершин или одна
             var tailNode = new SkipListTailNodeWithBacklink<TElement>();
-            var previousNode = new SkipListHeadNodeWithBacklink<TElement>(null, AMRBuilder.Build(tailNode, SkipListLables.None), null);
+            var previousNode = new SkipListHeadNodeWithBacklink<TElement>(null, AtomicMarkableReference<SkipListNodeWithBacklink<TElement>, SkipListLables>.New(tailNode, SkipListLables.None), null);
             previousNode.UpNode = previousNode;
             while (level > 0)
             {
-                var currentNode = new SkipListHeadNodeWithBacklink<TElement>(null, AMRBuilder.Build(tailNode, SkipListLables.None), previousNode);
+                var currentNode = new SkipListHeadNodeWithBacklink<TElement>(null, AtomicMarkableReference<SkipListNodeWithBacklink<TElement>, SkipListLables>.New(tailNode, SkipListLables.None), previousNode);
                 previousNode.DownNode = currentNode;
                 previousNode = currentNode;
                 level--;
@@ -236,29 +232,28 @@ namespace CodeDonkeys.Lockness
         //XORShift
         private class RandomGenerator
         {
-            private long state;
+            private volatile int state;
 
-            public RandomGenerator() : this(DateTime.Now.Ticks) {}
+            public RandomGenerator() : this(42) {}
 
-            public RandomGenerator(long seed)
+            public RandomGenerator(int seed)
             {
                 state = seed;
             }
 
             public int GetLevelsCount(int maxValue)
             {
-                long newState;
-                long oldState;
+                int newState;
+                int oldState;
                 do
                 {
                     oldState = state;
                     newState = oldState;
-                    newState ^= (newState << 21);
-                    newState ^= (newState >> 35);
-                    newState ^= (newState << 4);
+                    newState ^= newState << 13;
+                    newState ^= newState >> 17;
+                    newState ^= newState << 5;
                 } while (Interlocked.CompareExchange(ref state, newState, oldState) != oldState);
-                var result = (int) (state % maxValue);
-                return (result < 0) ? -result : result;
+                return Math.Abs(newState % maxValue);
             }
         }
 
@@ -269,7 +264,7 @@ namespace CodeDonkeys.Lockness
 
             public NodeOnLevel(int level, SkipListHeadNodeWithBacklink<TElement> node)
             {
-                Level = level;
+                Level = level;  
                 Node = node;
             }
         }

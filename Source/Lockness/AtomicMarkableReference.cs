@@ -4,6 +4,16 @@ namespace CodeDonkeys.Lockness
 {
     public sealed class AtomicMarkableReference<TReference, TMark>
     {
+        public static AtomicMarkableReference<TReference, TMark> Empty()
+        {
+            return new AtomicMarkableReference<TReference, TMark>(default(TReference), default(TMark));
+        }
+
+        public static AtomicMarkableReference<TReference, TMark> New(TReference reference, TMark mark)
+        {
+            return new AtomicMarkableReference<TReference, TMark>(reference, mark);
+        }
+
         public AtomicMarkableReference(TReference reference, TMark mark)
         {
             state = new State(reference, mark);

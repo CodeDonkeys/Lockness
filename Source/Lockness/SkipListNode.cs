@@ -6,6 +6,7 @@ namespace CodeDonkeys.Lockness
     [Flags]
     internal enum SkipListLables
     {
+        //Может быть переименовать?
         None = 0,
         Flag = 1,
         Mark = 2
@@ -25,6 +26,7 @@ namespace CodeDonkeys.Lockness
     {
         public volatile SkipListNodeWithBacklink<TElement> DownNode;
         public volatile SkipListRootNodeWithBacklink<TElement> RootNode;
+        //сделать readonly
         public AtomicMarkableReference<SkipListNodeWithBacklink<TElement>, SkipListLables> NextReference;
         public volatile SkipListNodeWithBacklink<TElement> Backlink;
 
@@ -37,7 +39,9 @@ namespace CodeDonkeys.Lockness
 
         public bool ElementIsEqualsTo(TElement element, IComparer<TElement> elementComparer)
         {
-            return RootNode != null && elementComparer.Compare(RootNode.Element, element) == 0;
+           //Проверить весь код на двойное чтение volatile полей
+            var rootNode = RootNode;
+            return rootNode != null && elementComparer.Compare(rootNode.Element, element) == 0;
         }
     }
 
