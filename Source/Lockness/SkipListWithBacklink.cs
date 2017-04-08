@@ -13,7 +13,10 @@ namespace CodeDonkeys.Lockness
         private readonly RandomGenerator randomGenerator;
         private readonly SkipListHeadNodeWithBacklink<TElement> head;
 
-        public SkipListWithBacklink(IComparer<TElement> elementComparer, int maxLevel = 32)
+        public SkipListWithBacklink(IComparer<TElement> elementComparer) : this(elementComparer, 32)
+        { } 
+
+        public SkipListWithBacklink(IComparer<TElement> elementComparer, int maxLevel)
         {
             this.maxLevel = maxLevel;
             comparer = elementComparer;
@@ -229,34 +232,6 @@ namespace CodeDonkeys.Lockness
             LessOrEqual
         }
 
-        //XORShift
-        private class RandomGenerator
-        {
-            private volatile int state;
-
-            public RandomGenerator() : this(42) {}
-
-            public RandomGenerator(int seed)
-            {
-                state = seed;
-            }
-
-            public int GetLevelsCount(int maxValue)
-            {
-                int newState;
-                int oldState;
-                do
-                {
-                    oldState = state;
-                    newState = oldState;
-                    newState ^= newState << 13;
-                    newState ^= newState >> 17;
-                    newState ^= newState << 5;
-                } while (Interlocked.CompareExchange(ref state, newState, oldState) != oldState);
-                return Math.Abs(newState % maxValue);
-            }
-        }
-
         private class NodeOnLevel
         {
             public SkipListHeadNodeWithBacklink<TElement> Node { get; }
@@ -282,17 +257,17 @@ namespace CodeDonkeys.Lockness
         }
         private struct Enumerator : IEnumerator<TElement>
         {
-            private readonly SkipListNodeWithBacklink<TElement> head;
-            private SkipListNodeWithBacklink<TElement> current;
+            private readonly SkipListRootNodeWithBacklink<TElement> head;
+            private SkipListRootNodeWithBacklink<TElement> current;
 
-            public TElement Current => current.RootNode.Element;
+            public TElement Current => current.Element;
 
-            object IEnumerator.Current => current.RootNode.Element;
+            object IEnumerator.Current => current.Element;
 
             internal Enumerator(SkipListNodeWithBacklink<TElement> head)
             {
-                this.head = head;
-                current = head;
+                this.head = head.RootNode;
+                current = this.head;
             }
 
             public void Dispose()
@@ -301,7 +276,7 @@ namespace CodeDonkeys.Lockness
 
             public bool MoveNext()
             {
-                current = current.NextReference;
+                current = (SkipListRootNodeWithBacklink<TElement>)current.NextReference;
                 return !(current is SkipListTailNodeWithBacklink<TElement>);
             }
 

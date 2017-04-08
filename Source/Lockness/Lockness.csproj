@@ -41,14 +41,18 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AtomicMarkableReference.cs" />
+    <Compile Include="LockBasedRedBlackTree.cs" />
+    <Compile Include="RedBlackTree.cs" />
     <Compile Include="SkipListWithBacklink.cs" />
     <Compile Include="HarrisLinkedList.cs" />
     <Compile Include="HarrisLinkedListWithBacklinkAndSuccessorFlag.cs" />
     <Compile Include="ISet.cs" />
     <Compile Include="SkipListNode.cs" />
-    <Compile Include="Node.cs" />
+    <Compile Include="LinkedListNode.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SkipList.cs" />
+    <Compile Include="RandomGenerator.cs" />
+    <Compile Include="StripedHashTable.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />

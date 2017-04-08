@@ -13,6 +13,7 @@ namespace CodeDonkeys.Lockness.Tests
         [TestCase(typeof(HarrisLinkedList<int>))]
         [TestCase(typeof(HarrisLinkedListWithBacklinkAndSuccessorFlag<int>))]
         [TestCase(typeof(SkipListWithBacklink<int>))]
+        [TestCase(typeof(StripedHashTable<int>))]
         public void TestSingleElement(Type type)
         {
             var instance = (ISet<int>)Activator.CreateInstance(type, Comparer<int>.Default);
@@ -36,6 +37,7 @@ namespace CodeDonkeys.Lockness.Tests
         [TestCase(typeof(HarrisLinkedList<int>))]
         [TestCase(typeof(HarrisLinkedListWithBacklinkAndSuccessorFlag<int>))]
         [TestCase(typeof(SkipListWithBacklink<int>))]
+        [TestCase(typeof(StripedHashTable<int>))]
         public void TestOrder(Type type)
         {
             var instance = (ISet<int>)Activator.CreateInstance(type, Comparer<int>.Default);
@@ -52,6 +54,7 @@ namespace CodeDonkeys.Lockness.Tests
         [TestCase(typeof(HarrisLinkedList<int>))]
         [TestCase(typeof(HarrisLinkedListWithBacklinkAndSuccessorFlag<int>))]
         [TestCase(typeof(SkipListWithBacklink<int>))]
+        [TestCase(typeof(StripedHashTable<int>))]
         public void TestDescendingOrder(Type type)
         {
             var instance = (ISet<int>)Activator.CreateInstance(type, Comparer<int>.Default);
@@ -68,6 +71,7 @@ namespace CodeDonkeys.Lockness.Tests
         [TestCase(typeof(HarrisLinkedList<int>))]
         [TestCase(typeof(HarrisLinkedListWithBacklinkAndSuccessorFlag<int>))]
         [TestCase(typeof(SkipListWithBacklink<int>))]
+        [TestCase(typeof(StripedHashTable<int>))]
         public void TestRandomOrder(Type type)
         {
             var instance = (ISet<int>)Activator.CreateInstance(type, Comparer<int>.Default);
@@ -85,6 +89,7 @@ namespace CodeDonkeys.Lockness.Tests
         [TestCase(typeof(HarrisLinkedList<int>))]
         [TestCase(typeof(HarrisLinkedListWithBacklinkAndSuccessorFlag<int>))]
         [TestCase(typeof(SkipListWithBacklink<int>))]
+        [TestCase(typeof(StripedHashTable<int>))]
         public void TestTwoThreadsInsert(Type type)
         {
             var instance = (ISet<int>)Activator.CreateInstance(type, Comparer<int>.Default);

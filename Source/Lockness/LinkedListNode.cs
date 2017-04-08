@@ -18,13 +18,13 @@ namespace CodeDonkeys.Lockness
         }
     }
 
-    public class Node<TElement>
+    public class LinkedListNode<TElement>
     {
         public readonly TElement Element;
-        public Node<TElement> Backlink;
-        public AtomicMarkableReference<Node<TElement>, LinkedListLables> NextReference;
+        public LinkedListNode<TElement> Backlink;
+        public AtomicMarkableReference<LinkedListNode<TElement>, LinkedListLables> NextReference;
 
-        public Node(TElement element, AtomicMarkableReference<Node<TElement>, LinkedListLables> nextReference)
+        public LinkedListNode(TElement element, AtomicMarkableReference<LinkedListNode<TElement>, LinkedListLables> nextReference)
         {
             Element = element;
             NextReference = nextReference;

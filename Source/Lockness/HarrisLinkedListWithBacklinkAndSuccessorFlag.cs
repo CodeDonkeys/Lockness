@@ -8,14 +8,14 @@ namespace CodeDonkeys.Lockness
     public sealed class HarrisLinkedListWithBacklinkAndSuccessorFlag<TElement> : ISet<TElement>
     {
         private readonly IComparer<TElement> comparer;
-        private readonly Node<TElement> head;
-        private readonly Node<TElement> tail;
+        private readonly LinkedListNode<TElement> head;
+        private readonly LinkedListNode<TElement> tail;
 
         public HarrisLinkedListWithBacklinkAndSuccessorFlag(IComparer<TElement> elementComparer)
         {
             comparer = elementComparer;
-            tail = new Node<TElement>(default(TElement), null);
-            head = new Node<TElement>(default(TElement), new AtomicMarkableReference<Node<TElement>, LinkedListLables>(tail, LinkedListLables.None));
+            tail = new LinkedListNode<TElement>(default(TElement), null);
+            head = new LinkedListNode<TElement>(default(TElement), new AtomicMarkableReference<LinkedListNode<TElement>, LinkedListLables>(tail, LinkedListLables.None));
         }
 
         public IEnumerator<TElement> GetEnumerator()
@@ -34,10 +34,10 @@ namespace CodeDonkeys.Lockness
 
             while (true)
             {
-                var nearbyNodes = Search(element, start, SearchStopCondition.LessOrEqual);
+                var nearbyNodes = Search(element, start, SearchStopCondition.Less);
                 if (nearbyNodes.RightNode != tail && comparer.Compare(nearbyNodes.RightNode.Element, element) == 0)
                     return false;
-                var newNode = new Node<TElement>(element, new AtomicMarkableReference<Node<TElement>, LinkedListLables>(nearbyNodes.RightNode, LinkedListLables.None));
+                var newNode = new LinkedListNode<TElement>(element, new AtomicMarkableReference<LinkedListNode<TElement>, LinkedListLables>(nearbyNodes.RightNode, LinkedListLables.None));
 
                 LinkedListLables oldLables;
                 var oldReference = nearbyNodes.LeftNode.NextReference.Get(out oldLables);
@@ -53,7 +53,7 @@ namespace CodeDonkeys.Lockness
 
         public bool Contains(TElement element)
         {
-            var nearbyNodes = Search(element, head, SearchStopCondition.LessOrEqual);
+            var nearbyNodes = Search(element, head, SearchStopCondition.Less);
 
             if (nearbyNodes.RightNode == tail || comparer.Compare(nearbyNodes.RightNode.Element, element) != 0)
                 return false;
@@ -73,7 +73,7 @@ namespace CodeDonkeys.Lockness
             TryPhysicallyDeleteNode(previousNode, deletedNode);
             return true;
         }
-        private bool TrySetFlagLable(ref Node<TElement> previousNode, Node<TElement> deletedNode)
+        private bool TrySetFlagLable(ref LinkedListNode<TElement> previousNode, LinkedListNode<TElement> deletedNode)
         {
             var spin = new SpinWait();
             while (true)
@@ -100,7 +100,7 @@ namespace CodeDonkeys.Lockness
             }
         }
 
-        private void SetBacklinkAndMarkLable(Node<TElement> previousNode, Node<TElement> deletedNode)
+        private void SetBacklinkAndMarkLable(LinkedListNode<TElement> previousNode, LinkedListNode<TElement> deletedNode)
         {
             deletedNode.Backlink = previousNode;
             var spin = new SpinWait();
@@ -116,7 +116,7 @@ namespace CodeDonkeys.Lockness
             }
         }
 
-        private void TryPhysicallyDeleteNode(Node<TElement> previousNode, Node<TElement> deletedNode)
+        private void TryPhysicallyDeleteNode(LinkedListNode<TElement> previousNode, LinkedListNode<TElement> deletedNode)
         {
             LinkedListLables oldLable;
             var nextNode = deletedNode.NextReference.Get(out oldLable);
@@ -129,7 +129,7 @@ namespace CodeDonkeys.Lockness
             LessOrEqual
         }
 
-        private SearchedNodes Search(TElement key, Node<TElement> start, SearchStopCondition searchStopCondition)
+        private SearchedNodes Search(TElement key, LinkedListNode<TElement> start, SearchStopCondition searchStopCondition)
         {
             var stopCondition = searchStopCondition == SearchStopCondition.Less
                 ? new Func<TElement, TElement, bool>((key1, key2) => comparer.Compare(key1, key2) < 0)
@@ -138,7 +138,7 @@ namespace CodeDonkeys.Lockness
             LinkedListLables mark;
             var nextNode = head.NextReference.Get(out mark);
             
-            while (mark.HasLinkedListLable(LinkedListLables.Mark) || comparer.Compare(nextNode.Element, key) < 0)
+            while (mark.HasLinkedListLable(LinkedListLables.Mark) || stopCondition(nextNode.Element, key))
             {
                 if (mark.HasLinkedListLable(LinkedListLables.Mark))
                 {
@@ -158,7 +158,7 @@ namespace CodeDonkeys.Lockness
             return new SearchedNodes(currentNode, nextNode);
         }
 
-        private Node<TElement> GetStart(Node<TElement> currentNode)
+        private LinkedListNode<TElement> GetStart(LinkedListNode<TElement> currentNode)
         {
             var start = currentNode;
             LinkedListLables lables;
@@ -174,7 +174,7 @@ namespace CodeDonkeys.Lockness
             return start;
         }
 
-        private bool TryPhysicallyDelete(Node<TElement> currentNode, Node<TElement> nextNode)
+        private bool TryPhysicallyDelete(LinkedListNode<TElement> currentNode, LinkedListNode<TElement> nextNode)
         {
             var oldReference = currentNode.NextReference;
             var newReference = nextNode.NextReference;
@@ -184,10 +184,10 @@ namespace CodeDonkeys.Lockness
 
         private class SearchedNodes
         {
-            public Node<TElement> LeftNode { get; }
-            public Node<TElement> RightNode { get; }
+            public LinkedListNode<TElement> LeftNode { get; }
+            public LinkedListNode<TElement> RightNode { get; }
 
-            public SearchedNodes(Node<TElement> leftNode, Node<TElement> rightNode)
+            public SearchedNodes(LinkedListNode<TElement> leftNode, LinkedListNode<TElement> rightNode)
             {
                 LeftNode = leftNode;
                 RightNode = rightNode;
@@ -199,11 +199,11 @@ namespace CodeDonkeys.Lockness
             public TElement Current => currentNode.Element;
             object IEnumerator.Current => Current;
 
-            private Node<TElement> currentNode;
-            private readonly Node<TElement> head;
-            private readonly Node<TElement> tail;
+            private LinkedListNode<TElement> currentNode;
+            private readonly LinkedListNode<TElement> head;
+            private readonly LinkedListNode<TElement> tail;
 
-            public Enumerator(Node<TElement> head, Node<TElement> tail)
+            public Enumerator(LinkedListNode<TElement> head, LinkedListNode<TElement> tail)
             {
                 this.head = head;
                 this.tail = tail;
