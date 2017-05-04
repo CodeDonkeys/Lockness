@@ -61,24 +61,11 @@ namespace CodeDonkeys.Lockness
 
         public bool Contains(TElement element)
         {
-            var predecessor = head;
-            while (predecessor != tail)
-            {
-                bool nodeMark;
-                var node = predecessor.Next.Get(out nodeMark);
-                var nodeComparison = comparer.Compare(node.Element, element);
-                if (nodeComparison < 0)
-                {
-                    predecessor = node;
-                    continue;
-                }
-                if (nodeComparison > 0)
-                {
-                    break;
-                }
-                return !nodeMark;
-            }
-            return false;
+            var spinWait = new SpinWait();
+            var window = Search(element, ref spinWait);
+            bool rightNextMark;
+            window.Right.Next.Get(out rightNextMark);
+            return window.Right != tail && comparer.Compare(window.Right.Element, element) == 0 && !rightNextMark;
         }
 
         public bool Remove(TElement element)
@@ -93,7 +80,7 @@ namespace CodeDonkeys.Lockness
 
                 var right = window.Right;
 
-                if (right != tail && comparer.Compare(element, right.Element) != 0)
+                if (right == tail || comparer.Compare(element, right.Element) != 0)
                 {
                     return false;
                 }
