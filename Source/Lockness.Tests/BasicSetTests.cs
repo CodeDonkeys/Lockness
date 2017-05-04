@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading.Tasks;
 using NUnit.Framework;
 
 namespace CodeDonkeys.Lockness.Tests
@@ -81,32 +80,6 @@ namespace CodeDonkeys.Lockness.Tests
             {
                 instance.Add(element);
             }
-
-            CollectionAssert.AreEqual(Enumerable.Range(0, 42), instance);
-        }
-
-        [Test]
-        [TestCase(typeof(HarrisLinkedList<int>))]
-        [TestCase(typeof(HarrisLinkedListWithBacklinkAndSuccessorFlag<int>))]
-        [TestCase(typeof(SkipListWithBacklink<int>))]
-        [TestCase(typeof(StripedHashTable<int>))]
-        public void TestTwoThreadsInsert(Type type)
-        {
-            var instance = (ISet<int>)Activator.CreateInstance(type, Comparer<int>.Default);
-
-            var func = new Action<int, ISet<int>>((start, collection) =>
-            {
-                for (var i = start; i < 42; i += 2)
-                {
-                    collection.Add(i);
-                }
-
-            });
-
-            var task0 = Task.Run(() => func(0, instance));
-            var task1 = Task.Run(() => func(1, instance));
-
-            Task.WaitAll(task0, task1);
 
             CollectionAssert.AreEqual(Enumerable.Range(0, 42), instance);
         }
