@@ -28,7 +28,7 @@ namespace CodeDonkeys.Lockness
                 newState ^= newState >> 17;
                 newState ^= newState << 5;
             } while (Interlocked.CompareExchange(ref state, newState, oldState) != oldState);
-            return Math.Abs(newState % maxValue);
+            return Math.Abs(newState % (maxValue - 1)) + 1;
         }
     }
 }
