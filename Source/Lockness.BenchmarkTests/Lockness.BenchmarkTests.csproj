@@ -130,6 +130,12 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AddAndContainsOperations.cs" />
+    <Compile Include="MixedOperations.cs" />
+    <Compile Include="OnlyAddOperations.cs" />
+    <Compile Include="OnlyContainsOperations.cs" />
+    <Compile Include="OnlyRemoveOperations.cs" />
+    <Compile Include="OperationsGenerator.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
