@@ -35,7 +35,7 @@ namespace CodeDonkeys.Lockness.BenchmarkTests
         [Params(100, 10000, 1000000)]
         public int OperationsCount { get; set; }
 
-        [Setup]
+        [IterationSetup]
         public void Initialize()
         {
             var set = (ISet<int>)Activator.CreateInstance(setNames[TypeName], Comparer<int>.Default);

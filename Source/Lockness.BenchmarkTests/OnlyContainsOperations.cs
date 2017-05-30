@@ -13,7 +13,7 @@ namespace CodeDonkeys.Lockness.BenchmarkTests
     [PlainExporter]
     public class OnlyContainsOperations
     {
-        private Dictionary<string, Type> setNames = new Dictionary<string, Type>
+        private readonly Dictionary<string, Type> setNames = new Dictionary<string, Type>
         {
             {"HarrisLinkedList", typeof(HarrisLinkedList<int>)},
             {"HarrisLinkedListWithBacklinkAndSuccessorFlag", typeof(HarrisLinkedListWithBacklinkAndSuccessorFlag<int>)},
@@ -25,13 +25,13 @@ namespace CodeDonkeys.Lockness.BenchmarkTests
 
         private ISet<int> set;
 
-        [Params(100)]//, 10000, 1000000)]
+        [Params(100, 10000, 1000000)]
         public int KeysCount { get; set; }
 
-        [Params(1, 2)]//, 8)]
+        [Params(1, 2, 8)]
         public int ThreadsCount { get; set; }
 
-        [Params("HarrisLinkedList", "SkipListWithBacklink")]//, "HarrisLinkedListWithBacklinkAndSuccessorFlag", "StrippedHashTable")]
+        [Params("HarrisLinkedList", "HarrisLinkedListWithBacklinkAndSuccessorFlag", "SkipListWithBacklink", "StrippedHashTable", "LockBasedHashTable", "LockBasedList")]
         public string TypeName { get; set; }
 
         private void ContainsElement(int start, ISet<int> collection)
@@ -42,7 +42,7 @@ namespace CodeDonkeys.Lockness.BenchmarkTests
             }
         }
 
-        [Setup]
+        [IterationSetup]
         public void Initialize()
         {
             set = (ISet<int>)Activator.CreateInstance(setNames[TypeName], Comparer<int>.Default);

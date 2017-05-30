@@ -24,7 +24,6 @@ namespace CodeDonkeys.Lockness.BenchmarkTests
             Add(StatisticColumn.OperationsPerSecond);
             Add(CsvMeasurementsExporter.Default);
             Add(RPlotExporter.Default);
-            Add(MemoryDiagnoser.Default);
         }
     }
     public static class Program

@@ -4,14 +4,16 @@ using System.Linq;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Attributes.Columns;
+using BenchmarkDotNet.Attributes.Exporters;
 
 namespace CodeDonkeys.Lockness.BenchmarkTests
 {
     [RankColumn]
     [Config(typeof(GeneralConfig))]
+    [PlainExporter]
     public class OnlyRemoveOperations
     {
-        private Dictionary<string, Type> setNames = new Dictionary<string, Type>
+        private readonly Dictionary<string, Type> setNames = new Dictionary<string, Type>
         {
             {"HarrisLinkedList", typeof(HarrisLinkedList<int>)},
             {"HarrisLinkedListWithBacklinkAndSuccessorFlag", typeof(HarrisLinkedListWithBacklinkAndSuccessorFlag<int>)},
@@ -35,7 +37,7 @@ namespace CodeDonkeys.Lockness.BenchmarkTests
         [Params("Direct", "Reverse", "Random")]
         public string Order { get; set; }
 
-        [Setup]
+        [IterationSetup]
         public void Initialize()
         {
             var set = (ISet<int>)Activator.CreateInstance(setNames[TypeName], Comparer<int>.Default);

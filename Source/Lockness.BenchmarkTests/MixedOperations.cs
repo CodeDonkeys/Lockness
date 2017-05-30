@@ -4,17 +4,19 @@ using System.Linq;
 using System.Threading.Tasks;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Attributes.Columns;
+using BenchmarkDotNet.Attributes.Exporters;
 
 namespace CodeDonkeys.Lockness.BenchmarkTests
 {
     [RankColumn]
     [Config(typeof(GeneralConfig))]
+    [PlainExporter]
     public class MixedOperations
     {
-        private OperationsGenerator generator = new OperationsGenerator();
+        private readonly OperationsGenerator generator = new OperationsGenerator();
         private Task[] tasks;
 
-        private Dictionary<string, Type> setNames = new Dictionary<string, Type>
+        private readonly Dictionary<string, Type> setNames = new Dictionary<string, Type>
         {
             {"HarrisLinkedList", typeof(HarrisLinkedList<int>)},
             {"HarrisLinkedListWithBacklinkAndSuccessorFlag", typeof(HarrisLinkedListWithBacklinkAndSuccessorFlag<int>)},
@@ -33,7 +35,7 @@ namespace CodeDonkeys.Lockness.BenchmarkTests
         [Params(100, 10000, 1000000)]
         public int OperationsCount { get; set; }
 
-        [Setup]
+        [IterationSetup]
         public void Initialize()
         {
             var set = (ISet<int>)Activator.CreateInstance(setNames[TypeName], Comparer<int>.Default);
