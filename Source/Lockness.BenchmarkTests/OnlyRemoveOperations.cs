@@ -71,7 +71,7 @@ namespace CodeDonkeys.Lockness.BenchmarkTests
         }
 
         [Benchmark]
-        public Task[] AddList()
+        public Task[] RemoveList()
         {
             foreach (var task in tasks)
             {

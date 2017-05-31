@@ -23,9 +23,11 @@ namespace CodeDonkeys.Lockness.BenchmarkTests
             {"LockBasedList", typeof(LockBasedList<int>)}
         };
 
+        private Task[] tasks;
+
         private ISet<int> set;
 
-        [Params(100, 10000, 1000000)]
+        [Params(100, 10000)]
         public int KeysCount { get; set; }
 
         [Params(1, 2, 8)]
@@ -45,25 +47,28 @@ namespace CodeDonkeys.Lockness.BenchmarkTests
         [IterationSetup]
         public void Initialize()
         {
-            set = (ISet<int>)Activator.CreateInstance(setNames[TypeName], Comparer<int>.Default);
             foreach (var i in Enumerable.Range(0, KeysCount))
             {
                 set.Add(i);
             }
+            tasks = Enumerable.Range(0, ThreadsCount).Select(i => new Task(() => ContainsElement(i, set))).ToArray();
+        }
+
+        [GlobalSetup]
+        public void SetInitialize()
+        {
+            set = (ISet<int>)Activator.CreateInstance(setNames[TypeName], Comparer<int>.Default);
         }
 
         [Benchmark]
-        public List<Task> ContainsList()
+        public Task[] ContainsList()
         {
-            var actionsList = Enumerable.Range(0, ThreadsCount).Select(i => new Action(() => ContainsElement(i, set))).ToArray();
-
-            var tasks = new List<Task>(ThreadsCount);
-            foreach (var action in actionsList)
+            foreach (var task in tasks)
             {
-                tasks.Add(Task.Run(action));
+                task.Start();
             }
 
-            Task.WaitAll(tasks.ToArray());
+            Task.WaitAll(tasks);
 
             return tasks;
         }

@@ -1,10 +1,11 @@
 ﻿using BenchmarkDotNet.Columns;
 using BenchmarkDotNet.Configs;
-using BenchmarkDotNet.Diagnosers;
+using BenchmarkDotNet.Engines;
 using BenchmarkDotNet.Environments;
 using BenchmarkDotNet.Exporters;
 using BenchmarkDotNet.Exporters.Csv;
 using BenchmarkDotNet.Jobs;
+using BenchmarkDotNet.Parameters;
 using BenchmarkDotNet.Running;
 
 namespace CodeDonkeys.Lockness.BenchmarkTests
@@ -13,7 +14,7 @@ namespace CodeDonkeys.Lockness.BenchmarkTests
     {
         public GeneralConfig()
         {
-            Add(new Job("GeneralJob", RunMode.Default, new EnvMode
+            Add(new Job("GeneralJob", new RunMode{RunStrategy = RunStrategy.Monitoring}, new EnvMode
             {
                 Gc = { Server = true, Concurrent = true },
                 Jit = Jit.RyuJit,
