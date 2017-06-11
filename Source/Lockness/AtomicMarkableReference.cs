@@ -2,7 +2,7 @@
 
 namespace CodeDonkeys.Lockness
 {
-    public sealed class AtomicMarkableReference<TReference, TMark>
+    public class AtomicMarkableReference<TReference, TMark> where TReference: class 
     {
         public static AtomicMarkableReference<TReference, TMark> Empty()
         {
