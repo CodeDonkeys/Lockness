@@ -59,7 +59,9 @@ namespace CodeDonkeys.Lockness
             var nearbyNodes = SearchToGivenLevel(element, 0, SearchStopCondition.Less);
             var deletedNode = nearbyNodes.RightNode;
             if (deletedNode is SkipListHeadNodeWithBacklink<TElement> || deletedNode is SkipListTailNodeWithBacklink<TElement> || comparer.Compare(deletedNode.RootNode.Element, element) != 0)
+            {
                 return false;
+            }
             var previousNode = nearbyNodes.LeftNode;
             if (!DeleteOneNode(previousNode, deletedNode))
                 return false;
@@ -146,9 +148,15 @@ namespace CodeDonkeys.Lockness
                 {
                     DeleteOneNode(currentNode, nextNode);
                     nextNode = currentNode.NextReference;
+                    if (nextNode is SkipListTailNodeWithBacklink<TElement>)
+                        break;
+                    nextNode.RootNode.NextReference.Get(out rootNodeLable);
                 }
-                currentNode = nextNode;
-                nextNode = currentNode.NextReference;
+                if (nextNode.NextReference != null && stopCondition(nextNode.RootNode.Element, key))
+                {
+                    currentNode = nextNode;
+                    nextNode = currentNode.NextReference;
+                }
             }
             return new SearchedNodes(currentNode, nextNode);
         }
@@ -169,7 +177,7 @@ namespace CodeDonkeys.Lockness
 
         private bool DeleteOneNode(SkipListNodeWithBacklink<TElement> previousNode, SkipListNodeWithBacklink<TElement> deletedNode)
         {
-            if (!TrySetFlagLable(ref previousNode, deletedNode))
+            if (!TrySetFlagLable(ref previousNode, deletedNode) || deletedNode is SkipListTailNodeWithBacklink<TElement>)
                 return false;
             SetBacklinkAndMarkLable(previousNode, deletedNode);
             TryPhysicallyDeleteNode(previousNode, deletedNode);
@@ -213,6 +221,8 @@ namespace CodeDonkeys.Lockness
                 var nextNode = deletedNode.NextReference.Get(out oldLable);
                 if (oldLable.HasLable(SkipListLables.Mark))
                     return;
+                if (oldLable.HasLable(SkipListLables.Flag))
+                    DeleteOneNode(deletedNode, deletedNode.NextReference);
                 if (deletedNode.NextReference.CompareAndSet(nextNode, nextNode, SkipListLables.None, SkipListLables.Mark))
                     return;
                 spin.SpinOnce();

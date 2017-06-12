@@ -56,5 +56,38 @@ namespace CodeDonkeys.Lockness.Tests
 
             CollectionAssert.AreEqual(Enumerable.Range(0, 42), instance);
         }
+
+
+        [Test]
+        [TestCase(typeof(HarrisLinkedList<int>))]
+        [TestCase(typeof(HarrisLinkedListWithBacklinkAndSuccessorFlag<int>))]
+        [TestCase(typeof(SkipListWithBacklink<int>))]
+        [TestCase(typeof(StripedHashTable<int>))]
+        public void TestTwoThreadsDelete(Type type)
+        {
+            var instance = (ISet<int>)Activator.CreateInstance(type, Comparer<int>.Default);
+
+            foreach (var i in Enumerable.Range(0,42))
+            {
+                instance.Add(i);
+            }
+
+            var func = new Action<int, ISet<int>>((start, collection) =>
+            {
+                for (var i = start; i < 42; i += 2)
+                {
+                    collection.Remove(i);
+                }
+
+            });
+            var task0 = Task.Run(() => func(0, instance));
+            var task1 = Task.Run(() => func(1, instance));
+
+            Task.WaitAll(task0, task1);
+
+            Assert.IsFalse(instance.Contains(42));
+
+            CollectionAssert.AreEqual(Enumerable.Empty<int>(), instance);
+        }
     }
 }
