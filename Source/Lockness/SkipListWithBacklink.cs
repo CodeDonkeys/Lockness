@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 
@@ -63,7 +62,7 @@ namespace CodeDonkeys.Lockness
                 return false;
             }
             var previousNode = nearbyNodes.LeftNode;
-            if (!DeleteOneNode(previousNode, deletedNode))
+            if (!DeleteOneNode(previousNode, deletedNode).Item2)
                 return false;
             SearchToGivenLevel(element, 1, SearchStopCondition.Less);
             return true;
@@ -144,9 +143,10 @@ namespace CodeDonkeys.Lockness
             {
                 SkipListLables rootNodeLable;
                 nextNode.RootNode.NextReference.Get(out rootNodeLable);
+                //если корневая вершина помечена на удаление, то удалить текущую вершину
                 while (rootNodeLable.HasLable(SkipListLables.Mark))
                 {
-                    DeleteOneNode(currentNode, nextNode);
+                    currentNode = DeleteOneNode(currentNode, nextNode).Item1;
                     nextNode = currentNode.NextReference;
                     if (nextNode is SkipListTailNodeWithBacklink<TElement>)
                         break;
@@ -175,26 +175,32 @@ namespace CodeDonkeys.Lockness
             return new NodeOnLevel(currentLevel, currentNode);
         }
 
-        private bool DeleteOneNode(SkipListNodeWithBacklink<TElement> previousNode, SkipListNodeWithBacklink<TElement> deletedNode)
+        private Tuple<SkipListNodeWithBacklink<TElement>, bool> DeleteOneNode(SkipListNodeWithBacklink<TElement> previousNode, SkipListNodeWithBacklink<TElement> deletedNode)
         {
-            if (!TrySetFlagLable(ref previousNode, deletedNode) || deletedNode is SkipListTailNodeWithBacklink<TElement>)
-                return false;
+            var result = TrySetFlagLable(previousNode, deletedNode);
+            if (!result.Item2 || deletedNode is SkipListTailNodeWithBacklink<TElement>)
+                return result;
+            previousNode = result.Item1;
             SetBacklinkAndMarkLable(previousNode, deletedNode);
             TryPhysicallyDeleteNode(previousNode, deletedNode);
-            return true; 
+            return Tuple.Create(previousNode, true); 
         }
 
-        private bool TrySetFlagLable(ref SkipListNodeWithBacklink<TElement> previousNode, SkipListNodeWithBacklink<TElement> deletedNode)
+        private Tuple<SkipListNodeWithBacklink<TElement>, bool> TrySetFlagLable(SkipListNodeWithBacklink<TElement> previousNode, SkipListNodeWithBacklink<TElement> deletedNode)
         {
             var spin = new SpinWait();
             while (true)
             {
                 SkipListLables oldLable;
-                var nextNode = previousNode.NextReference.Get(out oldLable);
+                previousNode.NextReference.Get(out oldLable);
                 if (oldLable.HasLable(SkipListLables.Flag))
-                    return true;
-                if (previousNode.NextReference.CompareAndSet(nextNode, nextNode, SkipListLables.None, SkipListLables.Flag))
-                    return true;
+                    return Tuple.Create(previousNode, true);
+                if (previousNode.NextReference.CompareAndSet(deletedNode, deletedNode, SkipListLables.None, SkipListLables.Flag))
+                    return Tuple.Create(previousNode, true);
+
+                var nextNode = previousNode.NextReference.Get(out oldLable);
+                if (oldLable.HasLable(SkipListLables.Flag) && nextNode == deletedNode)
+                    return Tuple.Create(previousNode, true);
 
                 SkipListLables currentLable;
                 previousNode.NextReference.Get(out currentLable);
@@ -204,8 +210,11 @@ namespace CodeDonkeys.Lockness
                     previousNode.NextReference.Get(out currentLable);
                 }
 
-                if (SearchOnOneLevel(deletedNode.RootNode.Element, previousNode, SearchStopCondition.LessOrEqual).LeftNode != deletedNode)
-                    return false;
+                var nearbyNodes = SearchOnOneLevel(deletedNode.RootNode.Element, previousNode, SearchStopCondition.Less);
+                if (nearbyNodes.RightNode != deletedNode)
+                    return Tuple.Create(previousNode, false);
+
+                previousNode = nearbyNodes.LeftNode;
 
                 spin.SpinOnce();
             }
@@ -221,10 +230,15 @@ namespace CodeDonkeys.Lockness
                 var nextNode = deletedNode.NextReference.Get(out oldLable);
                 if (oldLable.HasLable(SkipListLables.Mark))
                     return;
-                if (oldLable.HasLable(SkipListLables.Flag))
-                    DeleteOneNode(deletedNode, deletedNode.NextReference);
+                
                 if (deletedNode.NextReference.CompareAndSet(nextNode, nextNode, SkipListLables.None, SkipListLables.Mark))
+                {
                     return;
+                }
+                if (oldLable.HasLable(SkipListLables.Flag))
+                {
+                    DeleteOneNode(deletedNode, deletedNode.NextReference);
+                }
                 spin.SpinOnce();
             }
         }
