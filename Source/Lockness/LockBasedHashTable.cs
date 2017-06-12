@@ -25,9 +25,11 @@ namespace CodeDonkeys.Lockness
     public sealed class LockBasedHashTable<TElement> : ISet<TElement>
     {
         private readonly HashSet<TElement> list;
+        private readonly object lockObject;
         public LockBasedHashTable(IComparer<TElement> elementComparer)
         {
             list = new HashSet<TElement>(new HashTableComparer<TElement>(elementComparer));
+            lockObject = new object();
         }
 
         public IEnumerator<TElement> GetEnumerator()
@@ -44,8 +46,11 @@ namespace CodeDonkeys.Lockness
         {
             try
             {
-                list.Add(element);
-                return true;
+                lock (lockObject)
+                {
+                    list.Add(element);
+                    return true;
+                }
             }
             catch (Exception e)
             {
@@ -56,12 +61,18 @@ namespace CodeDonkeys.Lockness
 
         public bool Contains(TElement element)
         {
-            return list.Contains(element);
+            lock (lockObject)
+            {
+                return list.Contains(element);
+            }
         }
 
         public bool Remove(TElement element)
         {
-            return list.Remove(element);
+            lock (lockObject)
+            {
+                return list.Remove(element);
+            }
         }
     }
 }

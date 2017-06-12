@@ -7,9 +7,11 @@ namespace CodeDonkeys.Lockness
     public sealed class LockBasedList<TElement> : ISet<TElement>
     {
         private readonly SortedList<TElement, int> list;
+        private readonly object lockObject;
         public LockBasedList(IComparer<TElement> elementComparer)
         {
             list = new SortedList<TElement, int>(elementComparer);
+            lockObject = new object();
         }
 
         public IEnumerator<TElement> GetEnumerator()
@@ -26,8 +28,11 @@ namespace CodeDonkeys.Lockness
         {
             try
             {
-                list.Add(element, 0);
-                return true;
+                lock (lockObject)
+                {
+                    list.Add(element, 0);
+                    return true;
+                }
             }
             catch (Exception e)
             {
@@ -38,12 +43,18 @@ namespace CodeDonkeys.Lockness
 
         public bool Contains(TElement element)
         {
-            return list.ContainsKey(element);
+            lock (lockObject)
+            {
+                return list.ContainsKey(element);
+            }
         }
 
         public bool Remove(TElement element)
         {
-            return list.Remove(element);
+            lock (lockObject)
+            {
+                return list.Remove(element);
+            }
         }
     }
 }
