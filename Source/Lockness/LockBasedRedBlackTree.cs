@@ -30,15 +30,10 @@ namespace CodeDonkeys.Lockness
         {
             lock (lockObect)
             {
-                try
-                {
-                    internalSet.Add(element, null);
-                    return true;
-                }
-                catch
-                {
+                if (!internalSet.ContainsKey(element))
                     return false;
-                }
+                internalSet.Add(element, null);
+                return true;
             }
         }
 

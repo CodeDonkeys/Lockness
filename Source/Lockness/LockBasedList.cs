@@ -26,19 +26,13 @@ namespace CodeDonkeys.Lockness
 
         public bool Add(TElement element)
         {
-            try
+            lock (lockObject)
             {
-                lock (lockObject)
-                {
-                    list.Add(element, 0);
-                    return true;
-                }
+                if (!list.ContainsKey(element))
+                    return false;
+                list.Add(element, 0);
+                return true;
             }
-            catch (Exception e)
-            {
-                return false;
-            }
-            
         }
 
         public bool Contains(TElement element)
